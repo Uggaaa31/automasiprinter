@@ -217,6 +217,61 @@ PORT=8000
 
 ---
 
+### 🗺️ Dari Mana Kita Mengambil Setiap API? (Panduan Asal & Alur)
+
+Pada file `.env`, terdapat 3 kelompok API utama yang bekerja bersama. Berikut adalah penjelasan asal-usul dan cara mendapatkannya:
+
+#### 1. `BAILEYS_API_URL` (WhatsApp Gateway Lokal)
+* **Asal API:** **Dibuat oleh proyek ini sendiri secara lokal (100% Mandiri)**.
+* **Dari mana diambil?**
+  - Anda **TIDAK PERLU mendaftar ke website mana pun** atau membayar langganan.
+  - API ini otomatis aktif di komputer Anda saat script [start_wa_gateway.bat](file:///d:/Automasi%20Print/hermes-print-automation/start_wa_gateway.bat) atau [start_hermes.bat](file:///d:/Automasi%20Print/hermes-print-automation/start_hermes.bat) dijalankan.
+  - Server Node.js Express di folder `wa-gateway/` membuka port `3001` (`http://127.0.0.1:3001`) untuk melayani request kirim pesan dari FastAPI ke WhatsApp.
+* **Nilai Default:** Tetap gunakan `http://127.0.0.1:3001`.
+
+---
+
+#### 2. `OPENAI_BASE_URL`, `OPENAI_API_KEY`, & `AI_MODEL` (Koneksi LLM Proxy / 9Router)
+Sistem Hermes menggunakan protokol standar OpenAI (`/v1/chat/completions`). Anda memiliki 3 opsi sumber API untuk bagian ini:
+
+* **Opsi A: Menggunakan 9Router Lokal di Komputer Anda (Pilihan Saat Ini):**
+  - **Asal:** Aplikasi desktop **9Router** yang berjalan di background PC Anda.
+  - **`OPENAI_BASE_URL`:** Diambil dari port lokal 9Router, yaitu `http://localhost:20128/v1`.
+  - **`OPENAI_API_KEY`:** Diambil dari menu pengaturan/kunci di dalam aplikasi 9Router Anda (contoh: `sk-e1fd...`).
+  - **`AI_MODEL`:** Diambil dari daftar model aktif 9Router (dapat dicek via `http://localhost:20128/v1/models`). Saat ini direkomendasikan menggunakan `Kenari/beam-1-0:free` karena sangat cepat (~1.5 detik) dan bebas antrean rate-limit.
+
+* **Opsi B: Menggunakan OpenRouter Cloud (Alternatif Tanpa 9Router):**
+  - **Asal:** Website [OpenRouter.ai](https://openrouter.ai/).
+  - **`OPENAI_BASE_URL`:** `https://openrouter.ai/api/v1`
+  - **`OPENAI_API_KEY`:** Daftar gratis di [openrouter.ai/settings/keys](https://openrouter.ai/settings/keys) lalu klik *Create Key*.
+  - **`AI_MODEL`:** Pilih model gratis seperti `google/gemini-2.0-flash-exp:free` atau `meta-llama/llama-3.3-70b-instruct:free`.
+
+* **Opsi C: Menggunakan OpenAI Resmi:**
+  - **Asal:** Website [platform.openai.com](https://platform.openai.com/api-keys).
+  - **`OPENAI_BASE_URL`:** `https://api.openai.com/v1`
+  - **`OPENAI_API_KEY`:** Ambil API Key resmi dari dashboard OpenAI.
+  - **`AI_MODEL`:** `gpt-4o-mini`.
+
+---
+
+#### 3. `GEMINI_API_KEY` (Google AI Studio - Resmi & Gratis)
+* **Asal API:** Langsung dari server **Google DeepMind / Google AI Studio**.
+* **Keunggulan:** Google menyediakan kuota gratis sebesar **15 Request per Menit (RPM)** tanpa perlu kartu kredit, dengan latensi sangat cepat dan pemahaman bahasa Indonesia yang luar biasa alami.
+* **Cara Mengambil:**
+  1. Buka browser dan kunjungi: **[https://aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)**
+  2. Login menggunakan akun Google (Gmail) Anda.
+  3. Klik tombol biru **"Create API key"** -> Pilih project default.
+  4. Salin kode API Key yang muncul (berawalan huruf `AIzaSy...`).
+  5. Tempelkan ke `.env`:
+     ```env
+     AI_PROVIDER=gemini
+     GEMINI_API_KEY=AIzaSyxxxxxxxxxxxxxxxxx
+     AI_MODEL=gemini-2.5-flash
+     ```
+  *Jika `GEMINI_API_KEY` diisi dan `AI_PROVIDER=gemini`, sistem otomatis beralih langsung ke server Google tanpa melalui proxy 9Router.*
+
+---
+
 ## 🚀 Panduan Instalasi & Menjalankan Sistem
 
 ### 1. Prasyarat Sistem
