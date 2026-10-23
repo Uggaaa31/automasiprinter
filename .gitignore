@@ -32,6 +32,12 @@ storage/temp_pdfs/*
 cloudflared.exe
 ngrok.exe
 
+# WhatsApp Gateway (Baileys)
+wa-gateway/node_modules/
+storage/wa_session/
+storage/documents/*
+!storage/documents/.gitkeep
+
 # Editor & OS files
 .vscode/
 .idea/

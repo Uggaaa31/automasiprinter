@@ -119,6 +119,8 @@ async def parse_fonnte_request(request: Request) -> FonnteWebhookPayload:
     filename = raw_data.get("filename") or None
     filetype = raw_data.get("filetype") or None
     name = str(raw_data.get("name", "")).strip()
+    local_file_path = raw_data.get("local_file_path") or None
+    source = raw_data.get("source") or "fonnte"
 
     if not sender:
         raise HTTPException(
@@ -134,15 +136,18 @@ async def parse_fonnte_request(request: Request) -> FonnteWebhookPayload:
         filetype=filetype,
         name=name,
         device=raw_data.get("device"),
-        member=raw_data.get("member")
+        member=raw_data.get("member"),
+        local_file_path=local_file_path,
+        source=source
     )
 
 
+@app.api_route("/webhook/wa", methods=["GET", "POST"], status_code=status.HTTP_200_OK)
 @app.api_route("/webhook/fonnte", methods=["GET", "POST"], status_code=status.HTTP_200_OK)
 async def fonnte_webhook(request: Request):
-    """Primary webhook endpoint invoked by Fonnte on incoming WhatsApp messages or media."""
+    """Primary webhook endpoint invoked by Baileys local gateway or Fonnte on incoming WhatsApp messages/media."""
     if request.method == "GET":
-        return {"status": "ok", "message": "Fonnte Webhook endpoint is active and listening"}
+        return {"status": "ok", "message": "Hermes WhatsApp Webhook endpoint is active and listening"}
 
     payload = await parse_fonnte_request(request)
     sender = payload.sender
@@ -150,10 +155,11 @@ async def fonnte_webhook(request: Request):
     message_text = payload.message or ""
     file_url = payload.url
     filename = payload.filename or ""
+    local_file_path = payload.local_file_path
 
     logger.info(
-        "[WEBHOOK RECEIVED] From: %s (%s) | Msg: '%s' | URL: %s | Filename: %s",
-        sender, customer_name, message_text, file_url, filename
+        "[WEBHOOK RECEIVED] Source: %s | From: %s (%s) | Msg: '%s' | File: %s | LocalPath: %s",
+        payload.source, sender, customer_name, message_text, filename, local_file_path
     )
 
     # 1. Retrieve or initialize user session
@@ -162,7 +168,9 @@ async def fonnte_webhook(request: Request):
 
     # 2. Check if a PDF file attachment was sent
     is_pdf_attachment = False
-    if file_url:
+    if local_file_path and os.path.exists(local_file_path):
+        is_pdf_attachment = True
+    elif file_url:
         is_pdf_attachment = (
             file_url.lower().endswith(".pdf") or
             filename.lower().endswith(".pdf") or
@@ -173,11 +181,15 @@ async def fonnte_webhook(request: Request):
     # =========================================================================
     # CASE A: CUSTOMER UPLOADED A PDF DOCUMENT
     # =========================================================================
-    if is_pdf_attachment and file_url:
+    if is_pdf_attachment and (local_file_path or file_url):
         try:
-            logger.info("[PDF DOWNLOAD] Fetching PDF from %s ...", file_url)
-            local_pdf_path = await download_pdf_from_url(file_url, original_filename=filename)
-            logger.info("[PDF SAVED] Stored at: %s", local_pdf_path)
+            if local_file_path and os.path.exists(local_file_path):
+                local_pdf_path = local_file_path
+                logger.info("[PDF LOCAL] Using directly received PDF from Baileys: %s", local_pdf_path)
+            else:
+                logger.info("[PDF DOWNLOAD] Fetching PDF from %s ...", file_url)
+                local_pdf_path = await download_pdf_from_url(file_url, original_filename=filename)
+                logger.info("[PDF SAVED] Stored at: %s", local_pdf_path)
 
             # Analyze PDF
             analysis = analyze_pdf(local_pdf_path, original_filename=filename or "document.pdf")

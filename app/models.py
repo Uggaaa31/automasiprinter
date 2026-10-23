@@ -32,7 +32,7 @@ class SessionStatus(str, Enum):
 
 
 class FonnteWebhookPayload(BaseModel):
-    """Payload received from Fonnte Webhook callback."""
+    """Payload received from Fonnte Webhook callback or Baileys local gateway."""
     sender: str = Field(..., description="Sender WhatsApp phone number")
     message: Optional[str] = Field(default="", description="Text message content")
     url: Optional[str] = Field(default=None, description="URL of attached media/file")
@@ -41,6 +41,8 @@ class FonnteWebhookPayload(BaseModel):
     name: Optional[str] = Field(default="", description="Sender profile name")
     device: Optional[str] = Field(default=None, description="Device ID/number")
     member: Optional[str] = Field(default=None, description="Group member sender if group")
+    local_file_path: Optional[str] = Field(default=None, description="Local path to downloaded attachment file")
+    source: Optional[str] = Field(default="fonnte", description="Gateway source: 'baileys' or 'fonnte'")
 
 
 class PDFAnalysisResult(BaseModel):

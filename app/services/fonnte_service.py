@@ -22,20 +22,38 @@ async def send_whatsapp_message(
     file_url: Optional[str] = None,
     filename: Optional[str] = None
 ) -> Dict[str, Any]:
-    """Send a WhatsApp text or media message via Fonnte API."""
+    """Send a WhatsApp text or media message via local Baileys gateway or Fonnte API."""
+    # Normalize Indonesian phone number format
+    clean_target = target.strip().replace("+", "").replace("-", "").replace(" ", "")
+
+    # 1. If configured for Baileys (local zero-cost gateway), send via Baileys REST API
+    if settings.WHATSAPP_GATEWAY.lower() == "baileys":
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                response = await client.post(
+                    f"{settings.BAILEYS_API_URL.rstrip('/')}/send",
+                    json={"target": clean_target, "message": message}
+                )
+                if response.status_code == 200:
+                    response_json = response.json()
+                    logger.info("[BAILEYS] Send result for %s: %s", clean_target, response_json)
+                    return response_json
+                else:
+                    logger.warning("[BAILEYS] Local gateway returned %d: %s. Falling back to Fonnte...", response.status_code, response.text)
+        except Exception as exc:
+            logger.warning("[BAILEYS] Local gateway request failed (%s). Falling back to Fonnte...", exc)
+
+    # 2. Fallback to Fonnte API
     if not settings.FONNTE_API_TOKEN:
         logger.warning(
             "[FONNTE] FONNTE_API_TOKEN is empty! Message to %s was not sent over network: %s",
             target, message[:100]
         )
-        return {"status": False, "reason": "FONNTE_API_TOKEN not configured", "target": target}
+        return {"status": False, "reason": "No active WhatsApp gateway available", "target": target}
 
     headers = {
         "Authorization": settings.FONNTE_API_TOKEN
     }
-    
-    # Normalize Indonesian phone number format
-    clean_target = target.strip().replace("+", "").replace("-", "").replace(" ", "")
 
     payload = {
         "target": clean_target,

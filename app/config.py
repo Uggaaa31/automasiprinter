@@ -16,6 +16,16 @@ class Settings(BaseSettings):
         extra="ignore"
     )
 
+    # --- WhatsApp Gateway Settings ---
+    WHATSAPP_GATEWAY: str = Field(
+        default="baileys",
+        description="Active WhatsApp gateway: 'baileys' (local, zero-cost, supports files) or 'fonnte' (cloud)"
+    )
+    BAILEYS_API_URL: str = Field(
+        default="http://127.0.0.1:3001",
+        description="Local Baileys Express server URL"
+    )
+
     # --- Fonnte WhatsApp Gateway ---
     FONNTE_API_TOKEN: str = Field(
         default="",
