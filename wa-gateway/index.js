@@ -27,6 +27,7 @@ if (!fs.existsSync(DOCUMENTS_DIR)) fs.mkdirSync(DOCUMENTS_DIR, { recursive: true
 
 let sock = null;
 let isConnected = false;
+const jidMap = new Map();
 
 // Express server for outgoing messages from FastAPI
 const app = express();
@@ -50,10 +51,24 @@ app.post("/send", async (req, res) => {
     }
 
     try {
-        const cleanNumber = target.toString().replace(/[^0-9]/g, "");
-        const jid = `${cleanNumber}@s.whatsapp.net`;
+        let jid = null;
+        if (target.includes("@")) {
+            jid = target;
+        } else {
+            const cleanNumber = target.toString().replace(/[^0-9]/g, "");
+            if (jidMap.has(cleanNumber)) {
+                jid = jidMap.get(cleanNumber);
+            } else if (cleanNumber.length > 13) {
+                // WhatsApp LID (Linked Identity) is typically 15 digits
+                jid = `${cleanNumber}@lid`;
+            } else {
+                jid = `${cleanNumber}@s.whatsapp.net`;
+            }
+        }
+
+        console.log(`[WA-GATEWAY] Mengirim pesan ke JID: ${jid}`);
         const sent = await sock.sendMessage(jid, { text: message });
-        return res.json({ status: true, message: "sent", id: sent.key.id });
+        return res.json({ status: true, message: "sent", id: sent.key.id, jid });
     } catch (err) {
         console.error("[WA-GATEWAY] Error sending message to", target, err.message);
         return res.status(500).json({ status: false, error: err.message });
@@ -116,7 +131,24 @@ async function connectToWhatsApp() {
             // Ignore group chats
             if (m.key.remoteJid.endsWith("@g.us")) continue;
 
-            const senderNumber = m.key.remoteJid.split("@")[0].replace(/[^0-9]/g, "");
+            const remoteJid = m.key.remoteJid;
+            let senderNumber = remoteJid.split("@")[0].replace(/[^0-9]/g, "");
+
+            // Attempt to resolve real Phone Number if remoteJid is @lid
+            if (remoteJid.endsWith("@lid") && sock.signalRepository?.lidMapping?.getPNForLID) {
+                try {
+                    const pnJid = await sock.signalRepository.lidMapping.getPNForLID(remoteJid);
+                    if (pnJid) {
+                        const cleanPn = pnJid.split("@")[0].replace(/[^0-9]/g, "");
+                        console.log(`[WA-GATEWAY] Resolved LID ${senderNumber} -> Nomor Telepon: ${cleanPn}`);
+                        jidMap.set(cleanPn, remoteJid);
+                        senderNumber = cleanPn;
+                    }
+                } catch (e) {}
+            }
+            jidMap.set(senderNumber, remoteJid);
+            jidMap.set(remoteJid, remoteJid);
+
             const customerName = m.pushName || "";
             const msgObj = m.message;
 
