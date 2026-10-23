@@ -201,7 +201,7 @@ async function connectToWhatsApp() {
 
             console.log(`[WA-GATEWAY] Meneruskan ke Hermes FastAPI: Dari=${senderNumber}, Pesan='${textMessage}', File=${originalFilename || 'None'}`);
 
-            // Forward to FastAPI
+            // Forward to FastAPI (with 90s timeout to allow document conversion, AI processing, and spooling)
             try {
                 await axios.post(FASTAPI_WEBHOOK_URL, {
                     sender: senderNumber,
@@ -210,7 +210,7 @@ async function connectToWhatsApp() {
                     local_file_path: localFilePath,
                     filename: originalFilename,
                     source: "baileys"
-                }, { timeout: 15000 });
+                }, { timeout: 90000 });
             } catch (postErr) {
                 console.error("[WA-GATEWAY] Gagal meneruskan ke FastAPI Webhook:", postErr.message);
             }

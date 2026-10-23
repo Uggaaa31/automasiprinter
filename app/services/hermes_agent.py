@@ -16,54 +16,53 @@ from app.models import HermesAction, HermesDecision, PDFAnalysisResult, SessionD
 logger = logging.getLogger("hermes.agent")
 
 HERMES_SYSTEM_PROMPT = """
-Anda adalah "Hermes", AI Customer Service & Print Automation Specialist yang bertugas melayani pelanggan percetakan secara otomatis via WhatsApp.
-Sifat & Gaya Komunikasi Anda:
-- Sangat sopan, ramah, profesional, dan solutif (Bahasa Indonesia yang baik dan santun).
-- Menggunakan formatting WhatsApp standar (*tebal*, _miring_, `monospace`, bullet points, dan emoji relevan seperti 🖨️, 📄, ⚙️, ✨, 🙏).
-- Jangan berbelit-belit, berikan informasi yang jelas dan to the point.
+Anda adalah "Hermes", AI Customer Service & Print Automation Specialist di Percetakan Anugrah Indah.
+Tugas Anda adalah melayani pelanggan via WhatsApp dengan gaya bicara yang SANGAT ALAMI, RAMAH, DAN LUWES LAYAKNYA SEORANG MANUSIA (bukan bot/robot template yang kaku).
+
+Sifat & Gaya Komunikasi:
+- Berbicaralah seperti Customer Service profesional dan ramah di dunia nyata (hangat, solutif, menyapa nama pelanggan jika ada).
+- Gunakan Bahasa Indonesia percakapan yang santun dan akrab (gunakan sapaan seperti "Kak", "Halo Kak Saenab!", "Bisa banget Kak", "Siap kami bantu ya!").
+- Selalu sisipkan emoji WhatsApp yang hangat & relevan (seperti 😊, 🖨️, 📄, ✨, 🙏, 🚀).
+- JANGAN gunakan template kalimat yang terlalu kaku atau formal birokratis. Berikan variasi kalimat yang hidup dan luwes!
+- Kami melayani cetak file dokumen format PDF maupun Microsoft Word (.doc dan .docx).
 
 Kategori Tarif Percetakan (Hanya Ada 3 Kategori Warna, TIDAK ADA Kategori Hitam-Putih):
-1. Berwarna < 50%: Rp 2.000 / halaman
+1. Berwarna < 50%: Rp 2.000 / halaman (termasuk dokumen teks biasa atau hitam-putih standar)
 2. Berwarna >= 50%: Rp 2.500 / halaman
 3. Full Warna (Block/Cover/Foto): Rp 3.000 / halaman
-PENTING: Percetakan kami TIDAK memiliki kategori Hitam-Putih. Semua dokumen teks biasa atau dengan minim warna masuk ke kategori Berwarna < 50% (Rp 2.000/halaman). Jangan pernah menyebutkan tarif Hitam-Putih atau Rp 500 kepada pelanggan.
+PENTING: Percetakan kami TIDAK memiliki tarif Hitam-Putih terpisah. Semua dokumen teks biasa masuk ke kategori Berwarna < 50% (Rp 2.000/halaman). Jangan pernah menyebutkan tarif Hitam-Putih atau Rp 500 kepada pelanggan.
 
-Tugas Utama Anda:
+Tugas & Klasifikasi Tindakan:
 1. NEW_DOCUMENT_SUMMARY:
-   Jika menerima dokumen PDF baru:
-   - Berikan ringkasan singkat padat (1-3 kalimat) mengenai isi dokumen (misal: "Dokumen ini adalah draf proposal skripsi...", "File ini berupa CV/Resume...", atau "Dokumen pindaian/scan...").
-   - Sampaikan hasil deteksi: Jumlah halaman, rincian kategori warna (Warna < 50%, Warna >= 50%, Full Warna), ukuran kertas, dan orientasi.
-   - Sampaikan rincian pengaturan cetak bawaan (default: 1 rangkap, seluruh halaman).
-   - Cantumkan estimasi total biaya cetak.
-   - Tanyakan dengan ramah apakah pelanggan ingin langsung mencetak dokumen tersebut, atau ingin mengubah pengaturan cetak, atau perlu perbaikan/revisi isi/desain dokumen.
+   Jika menerima dokumen baru (PDF / Word):
+   - Sambut dengan hangat dan berikan ringkasan singkat isi dokumen (1-2 kalimat).
+   - Sampaikan hasil deteksi: Jumlah halaman, rincian warna (Warna < 50%, Warna >= 50%, Full Warna), ukuran kertas, dan estimasi biaya cetak bawaan (1 rangkap).
+   - Tanyakan dengan ramah apakah ingin langsung dicetak sekarang atau ingin mengubah pengaturan (jumlah rangkap / halaman tertentu).
 
 2. CONFIRM_PRINT:
-   Jika pelanggan menyetujui cetak (contoh: "Cetak sekarang", "Oke mas", "Gas print", "Ya tolong dicetak", "Siap", "Konfirmasi"):
-   - Berikan pesan bahwa dokumen sedang diproses dan dikirim langsung ke mesin printer.
-   - Beritahu pelanggan bahwa mereka dapat mengambil dokumen setelah proses selesai.
+   Jika pelanggan menyetujui / mengonfirmasi cetak (contoh: "Cetak", "Oke mas", "Gas print", "Ya cetak", "Lanjut"):
+   - Berikan respon antusias bahwa dokumen sedang dikirim langsung ke printer fisik.
+   - Beritahu pelanggan bahwa mereka bisa mengambil hasil cetakan begitu selesai.
 
 3. REVISE_PRINT_SETTINGS:
-   Jika pelanggan ingin mengubah parameter cetak (jumlah rangkap, rentang halaman):
-   - Ekstrak nilai baru: `updated_copies` (integer), `updated_page_range` (misal: "1-5", "1,3,5", "all").
-   - Tampilkan pembaruan pengaturan tersebut dan tanyakan konfirmasi akhir untuk mencetak.
+   Jika pelanggan ingin mengubah parameter cetak (jumlah rangkap, rentang halaman tertentu):
+   - Ekstrak: `updated_copies` (integer), `updated_page_range` (misal: "1-5", "1,3,5", "all").
+   - Konfirmasi pembaruan tersebut dengan ramah dan tanyakan apakah siap dicetak.
 
 4. REVISE_CONTENT_ADMIN:
-   Jika pelanggan meminta perubahan/editing isi teks, kesalahan ketik, tata letak/layout, atau desain dokumen:
-   - Sistem ini mencetak secara otomatis, sehingga jika ada permintaan edit isi dokumen, tugas HARUS dialihkan ke Admin manusia.
-   - Buat `revision_notes_for_admin` yang merangkum apa saja yang diminta pelanggan untuk diperbaiki.
-   - Berikan pesan sopan kepada pelanggan bahwa permintaan revisi isi/desain dokumen telah diteruskan ke nomor WhatsApp Admin, dan Admin kami akan segera menghubungi untuk proses editing serta cetak manual.
+   Jika pelanggan meminta perbaikan isi teks, ketikan, layout, atau desain:
+   - Jelaskan bahwa editing isi dokumen akan dibantu langsung oleh Admin kami.
+   - Buat `revision_notes_for_admin` dan informasikan bahwa Admin akan segera menghubungi.
 
 5. CHAT:
-   Jika pelanggan sekadar menyapa, bertanya harga, jam buka percetakan, atau konsultasi umum:
-   - Jawab dengan ramah dan informatif. Jika bertanya tarif, sampaikan hanya 3 kategori: Berwarna < 50% Rp 2.000, Berwarna >= 50% Rp 2.500, Full Warna Rp 3.000.
+   Jika pelanggan menyapa, bertanya format (misal Word/PDF), bertanya harga, jam buka, atau konsultasi umum:
+   - Jawab secara luwes, akrab, informatif, dan tawarkan bantuan untuk mengirim file mereka.
 
 6. CANCEL_PRINT:
-   Jika pelanggan membatalkan proses cetak:
-   - Konfirmasi pembatalan dengan sopan dan siap membantu jika ada dokumen lain.
+   Jika pelanggan membatalkan cetak: Jawab dengan sopan dan ramah.
 
 7. REQUEST_PDF:
-   Jika pelanggan ingin mencetak tetapi belum melampirkan file PDF:
-   - Minta pelanggan dengan santun untuk mengirimkan file dokumen dalam format PDF.
+   Jika pelanggan ingin mencetak tapi belum mengirim file: Ajak pelanggan untuk mengirimkan dokumen PDF atau Word mereka ke chat ini.
 """
 
 
@@ -216,6 +215,8 @@ def _build_rule_based_decision(
             reasoning="Rule-based heuristic: Print settings revised."
         )
 
+    customer_display = f"Kak {session.customer_name}" if session.customer_name else "Kak"
+
     # 6. Confirm Print
     confirm_keywords = [
         "cetak", "print", "oke", "ok", "gas", "siap", "lanjut", "ya",
@@ -225,13 +226,13 @@ def _build_rule_based_decision(
         return HermesDecision(
             action=HermesAction.CONFIRM_PRINT,
             reply_message=(
-                f"🚀 *Siap Kak! Dokumen Anda sedang dicetak otomatis.* 🖨️💨\n\n"
+                f"🚀 *Siap {customer_display}! Dokumen Anda sedang kami cetak.* 🖨️💨\n\n"
                 f"📄 File: `{session.original_filename}`\n"
                 f"• Jumlah: *{session.copies} Rangkap*\n"
                 f"• Mode: *{session.color_mode.upper()}*\n"
                 f"• Halaman: *{session.page_range}*\n\n"
-                "Dokumen sedang dikeluarkan oleh printer fisik kami di gerai. "
-                "Silakan diambil begitu selesai ya Kak. Terima kasih banyak telah menggunakan layanan kami! 🙏✨"
+                "Dokumen sudah dikirim ke printer fisik kami di gerai. "
+                "Silakan diambil begitu selesai ya Kak. Terima kasih banyak sudah mencetak di toko kami! 🙏✨"
             ),
             reasoning="Rule-based heuristic: Customer confirmed printing."
         )
@@ -241,8 +242,8 @@ def _build_rule_based_decision(
         return HermesDecision(
             action=HermesAction.CHAT,
             reply_message=(
-                f"Bisa banget Kak! 😊 Kami melayani cetak dokumen format *Microsoft Word* (`.doc` dan `.docx`) serta *PDF*.\n\n"
-                "Silakan langsung kirimkan file dokumen Word Anda ke chat WhatsApp ini ya Kak, sistem kami akan langsung membacanya! 📄🖨️✨"
+                f"Bisa banget dong {customer_display}! 😊 Di *{settings.STORE_NAME}*, kami melayani cetak file *Microsoft Word* (`.doc` dan `.docx`) maupun *PDF* lho.\n\n"
+                "Silakan langsung kirimkan dokumen Word Anda ke chat WhatsApp ini ya Kak, sistem kami akan langsung membaca dan menghitung biayanya! 📄🖨️✨"
             ),
             reasoning="Rule-based heuristic: Customer inquired about Word format."
         )
@@ -251,12 +252,13 @@ def _build_rule_based_decision(
     return HermesDecision(
         action=HermesAction.CHAT,
         reply_message=(
-            f"Halo Kak! Kami siap membantu mencetak dokumen Anda di *{settings.STORE_NAME}*. 🖨️✨\n\n"
+            f"Halo {customer_display}! Senang bisa menyapa Anda di *{settings.STORE_NAME}*. 😊🖨️\n\n"
+            f"Kami melayani jasa print dokumen cepat untuk format *PDF* maupun *Word* (`.docx`/`.doc`).\n\n"
             f"Tarif Cetak Dokumen:\n"
-            f"• Berwarna < 50%: Rp {settings.PRICE_COLOR_LOW:,}/halaman\n"
-            f"• Berwarna ≥ 50%: Rp {settings.PRICE_COLOR_HIGH:,}/halaman\n"
-            f"• Full Warna: Rp {settings.PRICE_COLOR_FULL:,}/halaman\n\n"
-            "Ada file yang ingin dicetak sekarang? Cukup kirimkan dokumen PDF atau Word Anda ke sini ya! 📄"
+            f"• Berwarna < 50% (termasuk teks biasa): *Rp {settings.PRICE_COLOR_LOW:,}/halaman*\n"
+            f"• Berwarna ≥ 50%: *Rp {settings.PRICE_COLOR_HIGH:,}/halaman*\n"
+            f"• Full Warna: *Rp {settings.PRICE_COLOR_FULL:,}/halaman*\n\n"
+            "Ada file yang ingin dicetak sekarang? Cukup kirimkan dokumen Anda ke chat ini ya! 📄✨"
         ),
         reasoning="Rule-based heuristic: General chat."
     )
@@ -291,7 +293,7 @@ async def call_gemini_structured(prompt: str) -> Optional[HermesDecision]:
 
 
 async def call_openai_structured(prompt: str) -> Optional[HermesDecision]:
-    """Execute structured decision generation via OpenAI SDK."""
+    """Execute structured decision generation via OpenAI SDK with robust JSON parsing and fast fallback."""
     if not settings.OPENAI_API_KEY:
         return None
 
@@ -299,16 +301,34 @@ async def call_openai_structured(prompt: str) -> Optional[HermesDecision]:
         from openai import AsyncOpenAI
         client = AsyncOpenAI(
             api_key=settings.OPENAI_API_KEY,
-            base_url=settings.OPENAI_BASE_URL
+            base_url=settings.OPENAI_BASE_URL,
+            timeout=12.0,
+            max_retries=1
         )
+
+        full_prompt = (
+            prompt +
+            "\n\nPENTING: Kembalikan respons HANYA dalam JSON valid tunggal dengan struktur:\n"
+            "{\n"
+            '  "action": "NEW_DOCUMENT_SUMMARY" | "CONFIRM_PRINT" | "REVISE_PRINT_SETTINGS" | "REVISE_CONTENT_ADMIN" | "CHAT" | "CANCEL_PRINT" | "REQUEST_PDF",\n'
+            '  "reply_message": "Tulis balasan WhatsApp yang ramah, sopan, luwes, dan natural seperti manusia melayani pelanggan secara langsung, lengkap dengan emoji yang relevan.",\n'
+            '  "document_summary": "Ringkasan isi dokumen (jika ada dokumen)",\n'
+            '  "updated_copies": 1,\n'
+            '  "updated_color_mode": "color",\n'
+            '  "updated_page_range": "all",\n'
+            '  "revision_notes_for_admin": null,\n'
+            '  "reasoning": "Alasan singkat tindakan"\n'
+            "}"
+        )
+
         response = await client.chat.completions.create(
             model=settings.AI_MODEL,
             messages=[
                 {"role": "system", "content": HERMES_SYSTEM_PROMPT},
-                {"role": "user", "content": prompt}
+                {"role": "user", "content": full_prompt}
             ],
             response_format={"type": "json_object"},
-            temperature=0.2,
+            temperature=0.3,
         )
         content = response.choices[0].message.content
         if content:
@@ -318,11 +338,76 @@ async def call_openai_structured(prompt: str) -> Optional[HermesDecision]:
                 content_clean = re.sub(r"\s*```$", "", content_clean)
             data = json.loads(content_clean)
             if isinstance(data, dict):
-                if not any(k in data for k in ("reply_message", "response", "message", "reply", "text")):
-                    for k, v in data.items():
-                        if k not in ("action", "reasoning", "reason") and isinstance(v, str) and len(v) > 5:
-                            data["reply_message"] = v
-                            break
+                # 1. Normalize action if model returns dictionary or variant string
+                raw_action = data.get("action")
+                if isinstance(raw_action, dict):
+                    act_type = str(raw_action.get("type") or raw_action.get("action") or raw_action.get("name") or "").upper()
+                    if any(k in act_type for k in ("PRINT", "CONFIRM")):
+                        data["action"] = HermesAction.CONFIRM_PRINT.value
+                    elif any(k in act_type for k in ("REVISE", "SETTING")):
+                        data["action"] = HermesAction.REVISE_PRINT_SETTINGS.value
+                    elif any(k in act_type for k in ("ADMIN", "EDIT")):
+                        data["action"] = HermesAction.REVISE_CONTENT_ADMIN.value
+                    elif any(k in act_type for k in ("CANCEL", "BATAL")):
+                        data["action"] = HermesAction.CANCEL_PRINT.value
+                    elif any(k in act_type for k in ("SUMMARY", "DOCUMENT", "DOC")):
+                        data["action"] = HermesAction.NEW_DOCUMENT_SUMMARY.value
+                    else:
+                        data["action"] = HermesAction.CHAT.value
+
+                    # Extract nested settings if present inside action dict
+                    if "copies" in raw_action and not data.get("updated_copies"):
+                        data["updated_copies"] = raw_action["copies"]
+                    if "page_range" in raw_action and not data.get("updated_page_range"):
+                        data["updated_page_range"] = raw_action["page_range"]
+                elif isinstance(raw_action, str):
+                    act_str = raw_action.upper().strip()
+                    if act_str in [a.value for a in HermesAction]:
+                        data["action"] = act_str
+                    elif any(k in act_str for k in ("PRINT_DOCUMENT", "PRINT", "CONFIRM", "YES_PRINT")):
+                        data["action"] = HermesAction.CONFIRM_PRINT.value
+                    elif any(k in act_str for k in ("SETTING", "REVISE_SETTINGS")):
+                        data["action"] = HermesAction.REVISE_PRINT_SETTINGS.value
+                    elif any(k in act_str for k in ("ADMIN", "EDIT")):
+                        data["action"] = HermesAction.REVISE_CONTENT_ADMIN.value
+                    elif any(k in act_str for k in ("CANCEL", "BATAL")):
+                        data["action"] = HermesAction.CANCEL_PRINT.value
+                    elif any(k in act_str for k in ("SUMMARY", "NEW_DOC")):
+                        data["action"] = HermesAction.NEW_DOCUMENT_SUMMARY.value
+                    elif any(k in act_str for k in ("REQUEST", "NEED_PDF")):
+                        data["action"] = HermesAction.REQUEST_PDF.value
+                    else:
+                        data["action"] = HermesAction.CHAT.value
+                else:
+                    data["action"] = HermesAction.CHAT.value
+
+                # 2. Normalize reply_message if keyed differently
+                if not data.get("reply_message"):
+                    # Check if action dict had a message
+                    if isinstance(raw_action, dict):
+                        for k in ("message", "reply", "text", "response"):
+                            if raw_action.get(k) and isinstance(raw_action[k], str):
+                                data["reply_message"] = raw_action[k]
+                                break
+
+                    # Check other top-level keys
+                    if not data.get("reply_message"):
+                        for k in ("response", "message", "reply", "text", "content"):
+                            if data.get(k) and isinstance(data[k], str) and len(data[k]) > 3:
+                                data["reply_message"] = data[k]
+                                break
+
+                    # Last fallback for reply_message
+                    if not data.get("reply_message"):
+                        for k, v in data.items():
+                            if k not in ("action", "reasoning", "reason", "updated_copies", "updated_color_mode", "updated_page_range") and isinstance(v, str) and len(v) > 5:
+                                data["reply_message"] = v
+                                break
+
+                # Ensure reply_message is at least a string
+                if not data.get("reply_message"):
+                    data["reply_message"] = "Siap Kak, pesan Anda telah kami terima! Ada yang bisa kami bantu lagi? 😊"
+
             return HermesDecision(**data)
     except Exception as exc:
         logger.warning("[HERMES] OpenAI/Proxy call failed: %s", exc)
