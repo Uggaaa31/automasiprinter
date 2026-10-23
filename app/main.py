@@ -1,6 +1,6 @@
 """Hermes Print Automation - FastAPI Main Application & Webhook Engine.
 
-Entry point for Fonnte WhatsApp webhooks, state management orchestration,
+Entry point for WhatsApp webhooks, state management orchestration,
 physical printing spooling, and admin escalation.
 """
 
@@ -24,11 +24,11 @@ from app.database import (
     update_session,
 )
 from app.models import (
-    FonnteWebhookPayload,
     HermesAction,
     SessionStatus,
+    WhatsAppWebhookPayload,
 )
-from app.services.fonnte_service import forward_document_to_admin, send_whatsapp_message
+from app.services.whatsapp_service import send_whatsapp_message
 from app.services.hermes_agent import process_user_turn
 from app.services.pdf_service import (
     analyze_pdf,
@@ -75,7 +75,7 @@ async def lifespan(app: FastAPI):
     else:
         logger.info("PRINT_SIMULATION_MODE is OFF. Physical spooler commands are LIVE.")
     
-    logger.info("Server ready and listening for Fonnte Webhooks on /webhook/fonnte")
+    logger.info("Server ready and listening for WhatsApp Gateway on /webhook/wa")
     logger.info("=============================================================")
     
     yield
@@ -85,7 +85,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Hermes Print Automation",
-    description="WhatsApp-based AI Automated Document Printing System using Fonnte API and Physical Spooler",
+    description="WhatsApp-based AI Automated Document Printing System using Baileys Local Gateway and Physical Spooler",
     version="1.0.0",
     lifespan=lifespan
 )
@@ -99,8 +99,8 @@ app.add_middleware(
 )
 
 
-async def parse_fonnte_request(request: Request) -> FonnteWebhookPayload:
-    """Parse incoming Fonnte webhook request flexibly from JSON or Form Data."""
+async def parse_whatsapp_request(request: Request) -> WhatsAppWebhookPayload:
+    """Parse incoming WhatsApp webhook request flexibly from JSON or Form Data."""
     content_type = request.headers.get("content-type", "").lower()
     raw_data: Dict[str, Any] = {}
 
@@ -120,7 +120,7 @@ async def parse_fonnte_request(request: Request) -> FonnteWebhookPayload:
     filetype = raw_data.get("filetype") or None
     name = str(raw_data.get("name", "")).strip()
     local_file_path = raw_data.get("local_file_path") or None
-    source = raw_data.get("source") or "fonnte"
+    source = raw_data.get("source") or "baileys"
 
     if not sender:
         raise HTTPException(
@@ -128,28 +128,25 @@ async def parse_fonnte_request(request: Request) -> FonnteWebhookPayload:
             detail="Missing 'sender' field in webhook payload"
         )
 
-    return FonnteWebhookPayload(
+    return WhatsAppWebhookPayload(
         sender=sender,
         message=message,
         url=url,
         filename=filename,
         filetype=filetype,
         name=name,
-        device=raw_data.get("device"),
-        member=raw_data.get("member"),
         local_file_path=local_file_path,
         source=source
     )
 
 
 @app.api_route("/webhook/wa", methods=["GET", "POST"], status_code=status.HTTP_200_OK)
-@app.api_route("/webhook/fonnte", methods=["GET", "POST"], status_code=status.HTTP_200_OK)
-async def fonnte_webhook(request: Request):
-    """Primary webhook endpoint invoked by Baileys local gateway or Fonnte on incoming WhatsApp messages/media."""
+async def whatsapp_webhook(request: Request):
+    """Primary webhook endpoint invoked by local Baileys WhatsApp Gateway."""
     if request.method == "GET":
         return {"status": "ok", "message": "Hermes WhatsApp Webhook endpoint is active and listening"}
 
-    payload = await parse_fonnte_request(request)
+    payload = await parse_whatsapp_request(request)
     sender = payload.sender
     customer_name = payload.name or ""
     message_text = payload.message or ""
@@ -448,7 +445,8 @@ async def health_check():
             "openai_configured": bool(settings.OPENAI_API_KEY)
         },
         "whatsapp_gateway": {
-            "fonnte_configured": bool(settings.FONNTE_API_TOKEN),
+            "gateway_type": "baileys_local",
+            "gateway_url": settings.BAILEYS_API_URL,
             "admin_number_configured": bool(settings.ADMIN_WHATSAPP_NUMBER)
         }
     }

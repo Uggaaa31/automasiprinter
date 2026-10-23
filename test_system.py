@@ -69,7 +69,7 @@ def create_sample_pdf(file_path: str) -> None:
         fitz.Point(72, 100),
         "BAB 1 PENDAHULUAN\n\n"
         "Dokumen ini adalah draf Skripsi Sistem Otomasi Percetakan.\n"
-        "Sistem ini menghubungkan WhatsApp Fonnte dengan mesin printer lokal.\n"
+        "Sistem ini menghubungkan WhatsApp dengan mesin printer lokal.\n"
         "Penelitian ini bertujuan untuk meningkatkan efisiensi antrean cetak.",
         fontsize=12,
         color=(0, 0, 0)
@@ -303,11 +303,11 @@ async def run_tests():
     assert data_health["status"] == "healthy"
     print(f"   • Health check: {data_health['status']}")
 
-    # Webhook chat message (Mock Fonnte dispatch to preserve real message quota)
+    # Webhook chat message (Mock WhatsApp dispatch to preserve test speed)
     with patch("app.main.send_whatsapp_message", new_callable=AsyncMock) as mock_send:
         mock_send.return_value = {"status": True, "detail": "mocked"}
         res_webhook = client.post(
-            "/webhook/fonnte",
+            "/webhook/wa",
             data={
                 "sender": test_phone,
                 "message": "Halo hermes, toko buka sampai jam berapa?",

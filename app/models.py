@@ -1,6 +1,6 @@
 """Hermes Print Automation - Data Models & Schemas.
 
-Contains Pydantic models for Fonnte webhooks, PDF analysis results,
+Contains Pydantic models for WhatsApp webhooks, PDF analysis results,
 LLM structured decisions, print job executions, and session states.
 """
 
@@ -31,18 +31,16 @@ class SessionStatus(str, Enum):
     CANCELLED = "CANCELLED"
 
 
-class FonnteWebhookPayload(BaseModel):
-    """Payload received from Fonnte Webhook callback or Baileys local gateway."""
+class WhatsAppWebhookPayload(BaseModel):
+    """Payload received from local Baileys WhatsApp Gateway."""
     sender: str = Field(..., description="Sender WhatsApp phone number")
     message: Optional[str] = Field(default="", description="Text message content")
-    url: Optional[str] = Field(default=None, description="URL of attached media/file")
+    url: Optional[str] = Field(default=None, description="URL of attached media/file if any")
     filename: Optional[str] = Field(default=None, description="Original filename of attachment")
     filetype: Optional[str] = Field(default=None, description="File type e.g. document/image")
     name: Optional[str] = Field(default="", description="Sender profile name")
-    device: Optional[str] = Field(default=None, description="Device ID/number")
-    member: Optional[str] = Field(default=None, description="Group member sender if group")
     local_file_path: Optional[str] = Field(default=None, description="Local path to downloaded attachment file")
-    source: Optional[str] = Field(default="fonnte", description="Gateway source: 'baileys' or 'fonnte'")
+    source: Optional[str] = Field(default="baileys", description="Gateway source")
 
 
 class PDFAnalysisResult(BaseModel):

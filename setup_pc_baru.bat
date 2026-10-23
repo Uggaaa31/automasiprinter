@@ -69,25 +69,20 @@ if not exist "C:\Users\%USERNAME%\AppData\Local\SumatraPDF\SumatraPDF.exe" (
 )
 
 :: -----------------------------------------------------------------
-:: 3. PEMERIKSAAN & DOWNLOAD OTOMATIS CLOUDFLARE TUNNEL (TUNNEL PUBLIK)
+:: 3. MENYIAPKAN GATEWAY WHATSAPP LOKAL (BAILEYS)
 :: -----------------------------------------------------------------
 echo.
-echo [3/6] Memeriksa Cloudflare Tunnel (cloudflared.exe) untuk link publik Fonnte...
-if not exist "cloudflared.exe" (
-    echo       [INFO] cloudflared.exe belum ada. Mengunduh secara otomatis dari Cloudflare...
-    set "CF_URL=https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe"
-    curl.exe -L -o "cloudflared.exe" "!CF_URL!"
-    if not exist "cloudflared.exe" (
-        echo       Mencoba download cadangan via PowerShell...
-        powershell -NoProfile -Command "Invoke-WebRequest -Uri '!CF_URL!' -OutFile 'cloudflared.exe'"
-    )
-    if exist "cloudflared.exe" (
-        echo       Cloudflare Tunnel berhasil diunduh dan siap digunakan!
+echo [3/6] Memeriksa modul Gateway WhatsApp Lokal (wa-gateway)...
+if exist "wa-gateway\package.json" (
+    if not exist "wa-gateway\node_modules" (
+        echo       Menginstall modul WhatsApp Gateway via npm...
+        pushd wa-gateway
+        call npm install
+        popd
+        echo       Modul WhatsApp Gateway berhasil dipasang!
     ) else (
-        echo       [INFO] Gagal mengunduh cloudflared.exe. Anda tetap dapat menggunakan tunnel fallback via ssh bawaan Windows.
+        echo       Modul WhatsApp Gateway (wa-gateway) sudah siap.
     )
-) else (
-    echo       Cloudflare Tunnel (cloudflared.exe) sudah siap digunakan.
 )
 
 :: -----------------------------------------------------------------
@@ -119,7 +114,7 @@ echo [6/6] Memeriksa konfigurasi environment (.env)...
 if not exist ".env" (
     if exist ".env.example" (
         copy .env.example .env >nul
-        echo       File .env baru telah dibuat dari template. Silakan lengkapi token Fonnte.
+        echo       File .env baru telah dibuat dari template.
     )
 ) else (
     echo       File .env sudah ada.
@@ -130,8 +125,8 @@ echo ===============================================================
 echo   🎉 SETUP SELESAI 100%! PC INI SIAP MENJALANKAN HERMES PRINT.
 echo.
 echo   Langkah Selanjutnya:
-echo   1. Pastikan file .env sudah berisi token WhatsApp Fonnte Anda.
-echo   2. Klik 2x file 'start_hermes.bat' untuk langsung memulai server + tunnel!
+echo   1. Klik 2x file 'start_hermes.bat' untuk memulai server + WhatsApp Gateway!
+echo   2. Scan QR Code yang muncul di layar dengan WhatsApp HP Toko Anda.
 echo ===============================================================
 echo.
 pause
