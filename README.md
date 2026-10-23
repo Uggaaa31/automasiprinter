@@ -280,25 +280,41 @@ Windows tidak memiliki antarmuka command-line bawaan yang mendukung passing para
 
 ---
 
-## 🌐 Menghubungkan Webhook Fonnte via Tunnel
+## 🌐 Menghubungkan Webhook Fonnte via Tunnel (Publik HTTPS)
 
-Agar Fonnte di cloud dapat mengirimkan webhook ke server FastAPI di PC lokal Anda, gunakan tool tunnel seperti **Ngrok** atau **Cloudflare Tunnel**:
+Agar Fonnte di cloud dapat mengirimkan pesan WhatsApp ke server FastAPI di PC lokal toko Anda (`localhost:8000`), sistem memerlukan tunnel publik HTTPS.
 
-### Menggunakan Ngrok:
+### 🌟 Cara Otomatis (Cloudflare Tunnel - Gratis & Tanpa Akun):
+File `setup_pc_baru.bat` sudah otomatis mendownload `cloudflared.exe`. Anda cukup:
+1. Klik 2x file **`start_hermes.bat`** (otomatis membuka Server Hermes + Cloudflare Tunnel).
+   * Atau klik 2x **`start_tunnel.bat`** untuk membuka tunnel tersendiri.
+2. Di jendela tunnel, akan muncul URL publik resmi Cloudflare, contoh:  
+   `https://random-subdomain.trycloudflare.com`
+3. Salin URL tersebut dan tambahkan `/webhook/fonnte` di belakangnya:
+   ```text
+   https://random-subdomain.trycloudflare.com/webhook/fonnte
+   ```
+
+### ⚡ Cara Alternatif 1: Bawaan Windows (OpenSSH - Tanpa Install Apapun)
+Jika di PC belum ada aplikasi tunnel, Anda bisa langsung menggunakan SSH bawaan Windows di Command Prompt:
 ```bash
-# Jalankan tunnel pada port 8000
+ssh -R 80:localhost:8000 a.pinggy.io
+```
+
+### ⚡ Cara Alternatif 2: Ngrok
+Jika Anda sudah memasang Ngrok:
+```bash
 ngrok http 8000
 ```
-Anda akan mendapatkan URL publik, contoh: `https://abcd-1234.ngrok-free.app`.
 
 ### Konfigurasi di Dashboard Fonnte:
 1. Masuk ke [https://md.fonnte.com/](https://md.fonnte.com/).
-2. Buka menu **Device Settings** / **Webhook**.
-3. Masukkan Webhook URL:
+2. Buka menu **Device Settings** -> **Webhook**.
+3. Masukkan Webhook URL yang Anda dapatkan dari tunnel di atas, contoh:
    ```text
-   https://abcd-1234.ngrok-free.app/webhook/fonnte
+   https://random-subdomain.trycloudflare.com/webhook/fonnte
    ```
-4. Simpan pengaturan. Sekarang setiap pesan WhatsApp yang masuk akan langsung diproses oleh Hermes!
+4. Simpan pengaturan. Sekarang setiap pesan WhatsApp pelanggan yang masuk akan langsung direspon oleh Hermes!
 
 ---
 

@@ -28,6 +28,10 @@ storage/temp_pdfs/*
 # Logs
 *.log
 
+# Tunnel Binaries
+cloudflared.exe
+ngrok.exe
+
 # Editor & OS files
 .vscode/
 .idea/

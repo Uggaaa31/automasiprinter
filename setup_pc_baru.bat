@@ -69,10 +69,32 @@ if not exist "C:\Users\%USERNAME%\AppData\Local\SumatraPDF\SumatraPDF.exe" (
 )
 
 :: -----------------------------------------------------------------
-:: 3. MEMBUAT VIRTUAL ENVIRONMENT (VENV)
+:: 3. PEMERIKSAAN & DOWNLOAD OTOMATIS CLOUDFLARE TUNNEL (TUNNEL PUBLIK)
 :: -----------------------------------------------------------------
 echo.
-echo [3/5] Menyiapkan Virtual Environment (venv) terisolasi...
+echo [3/6] Memeriksa Cloudflare Tunnel (cloudflared.exe) untuk link publik Fonnte...
+if not exist "cloudflared.exe" (
+    echo       [INFO] cloudflared.exe belum ada. Mengunduh secara otomatis dari Cloudflare...
+    set "CF_URL=https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe"
+    curl.exe -L -o "cloudflared.exe" "!CF_URL!"
+    if not exist "cloudflared.exe" (
+        echo       Mencoba download cadangan via PowerShell...
+        powershell -NoProfile -Command "Invoke-WebRequest -Uri '!CF_URL!' -OutFile 'cloudflared.exe'"
+    )
+    if exist "cloudflared.exe" (
+        echo       Cloudflare Tunnel berhasil diunduh dan siap digunakan!
+    ) else (
+        echo       [INFO] Gagal mengunduh cloudflared.exe. Anda tetap dapat menggunakan tunnel fallback via ssh bawaan Windows.
+    )
+) else (
+    echo       Cloudflare Tunnel (cloudflared.exe) sudah siap digunakan.
+)
+
+:: -----------------------------------------------------------------
+:: 4. MEMBUAT VIRTUAL ENVIRONMENT (VENV)
+:: -----------------------------------------------------------------
+echo.
+echo [4/6] Menyiapkan Virtual Environment (venv) terisolasi...
 if not exist "venv" (
     python -m venv venv
     echo       Virtual environment berhasil dibuat.
@@ -82,18 +104,18 @@ if not exist "venv" (
 call venv\Scripts\activate.bat
 
 :: -----------------------------------------------------------------
-:: 4. MENGINSTALL LIBRARY & DEPENDENSI PYTHON
+:: 5. MENGINSTALL LIBRARY & DEPENDENSI PYTHON
 :: -----------------------------------------------------------------
 echo.
-echo [4/5] Menginstall dependensi (FastAPI, PyMuPDF, GenAI/OpenAI, dll)...
+echo [5/6] Menginstall dependensi (FastAPI, PyMuPDF, GenAI/OpenAI, dll)...
 python -m pip install --upgrade pip >nul 2>&1
 pip install -r requirements.txt
 
 :: -----------------------------------------------------------------
-:: 5. MENYIAPKAN FILE KONFIGURASI .ENV
+:: 6. MENYIAPKAN FILE KONFIGURASI .ENV
 :: -----------------------------------------------------------------
 echo.
-echo [5/5] Memeriksa konfigurasi environment (.env)...
+echo [6/6] Memeriksa konfigurasi environment (.env)...
 if not exist ".env" (
     if exist ".env.example" (
         copy .env.example .env >nul
@@ -109,7 +131,7 @@ echo   🎉 SETUP SELESAI 100%! PC INI SIAP MENJALANKAN HERMES PRINT.
 echo.
 echo   Langkah Selanjutnya:
 echo   1. Pastikan file .env sudah berisi token WhatsApp Fonnte Anda.
-echo   2. Klik 2x file 'start_hermes.bat' untuk langsung memulai server!
+echo   2. Klik 2x file 'start_hermes.bat' untuk langsung memulai server + tunnel!
 echo ===============================================================
 echo.
 pause
