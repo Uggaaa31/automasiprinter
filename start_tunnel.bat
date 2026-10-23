@@ -8,24 +8,15 @@ echo.
 
 cd /d "%~dp0"
 
-where ngrok >nul 2>&1
-if %errorlevel% equ 0 (
-    echo [INFO] Menggunakan Ngrok Tunnel (Port 8000)...
-    echo Salin URL HTTPS yang muncul (contoh: https://xxxx.ngrok-free.app)
-    echo lalu tambahkan /webhook/fonnte di dashboard Fonnte.
-    echo ===============================================================
-    echo.
-    ngrok http 8000
-) else if exist "cloudflared.exe" (
-    echo [INFO] Menggunakan Cloudflare Tunnel (Port 8000)...
-    echo ===============================================================
-    echo.
-    cloudflared.exe tunnel --url http://localhost:8000
-) else (
-    echo [INFO] Menggunakan OpenSSH Tunnel (Port 443)...
-    echo ===============================================================
-    echo.
-    ssh -p 443 -o StrictHostKeyChecking=no -R 80:localhost:8000 a.pinggy.io
-)
+echo [INFO] Menghubungkan port 8000 ke internet via Windows OpenSSH...
+echo.
+echo PETUNJUK:
+echo 1. Tunggu 1-2 detik sampai muncul baris 'https://xxxx.lhr.life'.
+echo 2. Salin URL tersebut dan tambahkan /webhook/fonnte di belakangnya:
+echo    Contoh: https://xxxx.lhr.life/webhook/fonnte
+echo 3. Tempel (Paste) URL tersebut di kolom 'Webhook ?' di Dashboard Fonnte!
+echo ===============================================================
+echo.
+ssh -o StrictHostKeyChecking=no -R 80:localhost:8000 nokey@localhost.run
 
 pause

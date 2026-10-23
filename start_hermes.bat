@@ -8,18 +8,9 @@ echo.
 
 cd /d "%~dp0"
 
-:: 1. Deteksi dan Jalankan Tunnel di jendela terpisah
-where ngrok >nul 2>&1
-if %errorlevel% equ 0 (
-    echo [INFO] Menjalankan Ngrok Tunnel di jendela terpisah...
-    start "Hermes WhatsApp Tunnel (Ngrok)" cmd /k "ngrok http 8000"
-) else if exist "cloudflared.exe" (
-    echo [INFO] Menjalankan Cloudflare Tunnel di jendela terpisah...
-    start "Hermes WhatsApp Tunnel (Cloudflare)" cmd /k "cloudflared.exe tunnel --url http://localhost:8000"
-) else (
-    echo [INFO] Menjalankan OpenSSH Tunnel di jendela terpisah...
-    start "Hermes WhatsApp Tunnel (SSH)" cmd /k "ssh -p 443 -o StrictHostKeyChecking=no -R 80:localhost:8000 a.pinggy.io"
-)
+:: 1. Jalankan Tunnel Publik via Windows OpenSSH (Gratis & Tanpa Login/Token)
+echo [INFO] Menjalankan Tunnel Publik di jendela terpisah...
+start "Hermes WhatsApp Tunnel" cmd /k "ssh -o StrictHostKeyChecking=no -R 80:localhost:8000 nokey@localhost.run"
 
 :: 2. Aktifkan Virtual Environment
 if exist "venv\Scripts\activate.bat" (
