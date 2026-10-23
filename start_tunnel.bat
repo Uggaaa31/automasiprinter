@@ -1,30 +1,31 @@
 @echo off
-title Hermes WhatsApp Tunnel (Cloudflare)
+title "Hermes WhatsApp Tunnel"
 color 0E
 echo ===============================================================
-echo           HERMES WHATSAPP TUNNEL (CLOUDFLARE)
+echo                HERMES WHATSAPP TUNNEL
 echo ===============================================================
 echo.
 
 cd /d "%~dp0"
 
-if exist "cloudflared.exe" (
-    echo [INFO] Menghubungkan port 8000 ke internet via Cloudflare...
+where ngrok >nul 2>&1
+if %errorlevel% equ 0 (
+    echo [INFO] Menggunakan Ngrok Tunnel (Port 8000)...
+    echo Salin URL HTTPS yang muncul (contoh: https://xxxx.ngrok-free.app)
+    echo lalu tambahkan /webhook/fonnte di dashboard Fonnte.
+    echo ===============================================================
     echo.
-    echo PETUNJUK:
-    echo 1. Tunggu beberapa detik sampai muncul baris URL '.trycloudflare.com'.
-    echo 2. Salin URL tersebut dan tambahkan /webhook/fonnte di belakangnya.
-    echo    Contoh: https://xxxx.trycloudflare.com/webhook/fonnte
-    echo 3. Tempel (Paste) URL tersebut di Webhook Dashboard Fonnte!
+    ngrok http 8000
+) else if exist "cloudflared.exe" (
+    echo [INFO] Menggunakan Cloudflare Tunnel (Port 8000)...
     echo ===============================================================
     echo.
     cloudflared.exe tunnel --url http://localhost:8000
 ) else (
-    echo [INFO] cloudflared.exe tidak ditemukan di folder ini.
-    echo Menggunakan fallback bawaan Windows (OpenSSH)...
+    echo [INFO] Menggunakan OpenSSH Tunnel (Port 443)...
     echo ===============================================================
     echo.
-    ssh -R 80:localhost:8000 a.pinggy.io
+    ssh -p 443 -o StrictHostKeyChecking=no -R 80:localhost:8000 a.pinggy.io
 )
 
 pause
