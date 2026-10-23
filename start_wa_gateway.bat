@@ -15,6 +15,6 @@ if not exist "node_modules" (
 
 echo [INFO] Menjalankan WhatsApp Gateway di port 3001...
 echo.
-npm start
+call npm start
 
 pause

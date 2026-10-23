@@ -10,7 +10,7 @@ cd /d "%~dp0"
 
 :: 1. Jalankan Gateway WhatsApp Lokal (Baileys - Gratis, Support File & Tanpa Tunnel)
 echo [INFO] Menjalankan Gateway WhatsApp Lokal (Baileys) di jendela terpisah...
-start "Hermes WhatsApp Gateway (Baileys)" cmd /k "cd /d \"%~dp0wa-gateway\" && npm start"
+start "Hermes WhatsApp Gateway (Baileys)" "%~dp0start_wa_gateway.bat"
 
 :: 2. Aktifkan Virtual Environment
 if exist "venv\Scripts\activate.bat" (
