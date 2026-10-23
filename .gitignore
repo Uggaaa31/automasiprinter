@@ -1,0 +1,35 @@
+# ==============================================================================
+# GIT IGNORE - HERMES PRINT AUTOMATION
+# ==============================================================================
+
+# Secrets and environment configurations
+.env
+*.env.local
+
+# Virtual Environments
+venv/
+env/
+ENV/
+
+# Python cache & bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyd
+
+# SQLite Database & Temporary Customer PDFs
+*.db
+*.sqlite
+*.sqlite3
+storage/*.db
+storage/temp_pdfs/*
+!storage/temp_pdfs/.gitkeep
+
+# Logs
+*.log
+
+# Editor & OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
