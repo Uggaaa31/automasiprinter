@@ -71,10 +71,6 @@ class Settings(BaseSettings):
     )
 
     # --- Business Pricing Rules (IDR) ---
-    PRICE_PER_PAGE_BW: int = Field(
-        default=500,
-        description="Tarif cetak per halaman Hitam-Putih (IDR)"
-    )
     PRICE_COLOR_LOW: int = Field(
         default=2000,
         description="Tarif cetak warna < 50% per halaman (IDR)"
@@ -86,6 +82,10 @@ class Settings(BaseSettings):
     PRICE_COLOR_FULL: int = Field(
         default=3000,
         description="Tarif cetak full warna per halaman (IDR)"
+    )
+    PRICE_PER_PAGE_BW: int = Field(
+        default=2000,
+        description="Fallback tarif cetak non-warna/teks (mengikuti tier Warna < 50%)"
     )
     PRICE_PER_PAGE_COLOR: int = Field(
         default=2000,

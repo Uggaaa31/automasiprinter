@@ -49,13 +49,13 @@ def detect_paper_size_and_dimensions(width: float, height: float) -> Tuple[str, 
 
 
 def classify_page_color(page: fitz.Page, dpi: int = 36) -> Tuple[str, float]:
-    """Accurately classify page color tier and measure coverage percentage.
+    """Accurately classify page into 3 color tiers based on pixel color ratio and ink coverage.
+    (Catatan: Tidak ada kategori Hitam-Putih; halaman teks standar / minim warna masuk ke tier Warna < 50%).
     
     Returns:
         (category, coverage_pct)
-        - 'BW': Hitam-putih murni / grayscale (Rp 500)
-        - 'COLOR_LOW': Warna < 50% luas/konten (Rp 2.000)
-        - 'COLOR_HIGH': Warna >= 50% luas/konten (Rp 2.500)
+        - 'COLOR_LOW': Warna < 50% (Rp 2.000)
+        - 'COLOR_HIGH': Warna >= 50% (Rp 2.500)
         - 'COLOR_FULL': Full warna (blok warna tebal, poster, foto penuh) (Rp 3.000)
     """
     try:
@@ -81,8 +81,9 @@ def classify_page_color(page: fitz.Page, dpi: int = 36) -> Tuple[str, float]:
         ink_mask = (r < 240) | (g < 240) | (b < 240)
         ink_pixels = np.count_nonzero(ink_mask)
 
-        if color_pixels <= 30:
-            return "BW", 0.0
+        # Halaman dengan sedikit / tanpa warna masuk ke kategori Warna < 50%
+        if color_pixels <= 30 or ink_pixels == 0:
+            return "COLOR_LOW", 0.0
 
         # Page-wide coverage (colored pixels vs total physical sheet area)
         page_coverage = color_pixels / total_pixels
@@ -98,18 +99,17 @@ def classify_page_color(page: fitz.Page, dpi: int = 36) -> Tuple[str, float]:
         elif ink_ratio >= 0.50 or page_coverage >= 0.18:
             return "COLOR_HIGH", max(page_coverage, ink_ratio) * 100
 
-        # 3. Warna < 50%: warna ringan (logo, kop surat, grafik kecil, teks sub-judul berwarna)
+        # 3. Warna < 50%: warna ringan / teks biasa / di bawah 50%
         else:
             return "COLOR_LOW", max(page_coverage, ink_ratio) * 100
 
     except Exception:
-        return "BW", 0.0
+        return "COLOR_LOW", 0.0
 
 
 def is_page_color(page: fitz.Page, dpi: int = 36) -> bool:
-    """Helper for backward compatibility."""
-    cat, _ = classify_page_color(page, dpi=dpi)
-    return cat != "BW"
+    """Helper for backward compatibility (all prints use color categories)."""
+    return True
 
 
 def parse_page_range(range_str: str, max_pages: int) -> Set[int]:
@@ -146,31 +146,31 @@ def parse_page_range(range_str: str, max_pages: int) -> Set[int]:
 
 def calculate_price(
     total_pages: int,
-    color_pages_list: List[int],
-    bw_pages_list: List[int],
+    color_pages_list: Optional[List[int]] = None,
+    bw_pages_list: Optional[List[int]] = None,
     color_low_pages: Optional[List[int]] = None,
     color_high_pages: Optional[List[int]] = None,
     color_full_pages: Optional[List[int]] = None,
     copies: int = 1,
     color_mode: str = "auto",
     page_range: str = "all",
-    price_bw: Optional[int] = None,
     price_low: Optional[int] = None,
     price_high: Optional[int] = None,
-    price_full: Optional[int] = None
+    price_full: Optional[int] = None,
+    price_bw: Optional[int] = None
 ) -> int:
-    """Calculate the total printing cost based on settings and the 3-tier color pricing."""
-    price_bw = price_bw if price_bw is not None else settings.PRICE_PER_PAGE_BW
+    """Calculate the total printing cost based strictly on the 3-tier color pricing:
+    1. Warna < 50%: Rp 2.000
+    2. Warna >= 50%: Rp 2.500
+    3. Full Warna: Rp 3.000
+    (Catatan: Tidak ada tarif Hitam-Putih; halaman teks standar / non-warna dihitung tarif tier Warna < 50%).
+    """
     price_low = price_low if price_low is not None else settings.PRICE_COLOR_LOW
     price_high = price_high if price_high is not None else settings.PRICE_COLOR_HIGH
     price_full = price_full if price_full is not None else settings.PRICE_COLOR_FULL
     copies = max(1, copies)
 
     selected_pages = parse_page_range(page_range, total_pages)
-    selected_count = len(selected_pages)
-
-    if color_mode == "bw":
-        return selected_count * price_bw * copies
 
     low_set = set(color_low_pages or [])
     high_set = set(color_high_pages or [])
@@ -179,7 +179,7 @@ def calculate_price(
 
     # If color tier breakdown is not provided, fallback to color_pages_list as low tier
     if not (low_set or high_set or full_set):
-        color_set = set(color_pages_list or [])
+        color_set = set(color_pages_list or selected_pages)
         low_set = color_set
 
     count_low = len(selected_pages.intersection(low_set))
@@ -187,10 +187,8 @@ def calculate_price(
     count_full = len(selected_pages.intersection(full_set))
     count_bw = len(selected_pages.intersection(bw_set))
 
-    if color_mode == "color":
-        subtotal = ((count_low + count_bw) * price_low) + (count_high * price_high) + (count_full * price_full)
-    else:  # 'auto' mode
-        subtotal = (count_bw * price_bw) + (count_low * price_low) + (count_high * price_high) + (count_full * price_full)
+    # Semua halaman di bawah 50% (termasuk halaman teks/minim warna) dihitung tarif tier Warna < 50%
+    subtotal = ((count_low + count_bw) * price_low) + (count_high * price_high) + (count_full * price_full)
 
     return subtotal * copies
 
@@ -257,16 +255,13 @@ def analyze_pdf(file_path: str, original_filename: Optional[str] = None) -> PDFA
 
         # Color analysis with 3-tier categorization (<50%, >=50%, full)
         color_cat, _ = classify_page_color(page)
-        if color_cat == "BW":
-            bw_pages.append(page_num)
+        color_pages.append(page_num)
+        if color_cat == "COLOR_FULL":
+            color_full_pages.append(page_num)
+        elif color_cat == "COLOR_HIGH":
+            color_high_pages.append(page_num)
         else:
-            color_pages.append(page_num)
-            if color_cat == "COLOR_LOW":
-                color_low_pages.append(page_num)
-            elif color_cat == "COLOR_HIGH":
-                color_high_pages.append(page_num)
-            elif color_cat == "COLOR_FULL":
-                color_full_pages.append(page_num)
+            color_low_pages.append(page_num)
 
         # Text extraction sampling (first 3 pages, middle page, last page for rich context)
         if page_num <= 4 or page_num == total_pages or (page_num == (total_pages // 2)):

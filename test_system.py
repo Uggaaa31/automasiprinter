@@ -24,6 +24,8 @@ if sys.platform.startswith("win"):
     except Exception:
         pass
 
+from unittest.mock import AsyncMock, patch
+
 import pymupdf as fitz
 from fastapi.testclient import TestClient
 
@@ -169,58 +171,44 @@ async def run_tests():
     print(f"   • Estimated Price (1 copy, auto): Rp {analysis.estimated_price:,}")
 
     assert analysis.total_pages == 5
-    assert 1 in analysis.bw_pages_list, "Page 1 must be detected as BW!"
-    assert 3 in analysis.bw_pages_list, "Page 3 must be detected as BW!"
-    assert 2 in analysis.color_low_pages, "Page 2 must be classified as COLOR_LOW (<50%)!"
+    assert 1 in analysis.color_low_pages, "Page 1 (text) must be classified as COLOR_LOW (<50%)!"
+    assert 2 in analysis.color_low_pages, "Page 2 (minimal color) must be classified as COLOR_LOW (<50%)!"
+    assert 3 in analysis.color_low_pages, "Page 3 (text) must be classified as COLOR_LOW (<50%)!"
+    assert 4 in analysis.color_high_pages, "Page 4 must be classified as COLOR_HIGH (>=50%)!"
     assert 5 in analysis.color_full_pages, "Page 5 must be classified as COLOR_FULL!"
+    assert analysis.color_low_count == 3
+    assert analysis.color_high_count == 1
+    assert analysis.color_full_count == 1
     assert "A4" in analysis.paper_size
 
-    # Test price calculation
-    # 5 pages: 2 BW (2 * 500 = 1000) + 1 Low (2000) + 1 High (2500) + 1 Full (3000) = 8500
+    # Test price calculation: 3 pages low (3*2000) + 1 high (2500) + 1 full (3000) = 11500
     price_auto = calculate_price(
         total_pages=5,
-        color_pages_list=[2, 4, 5],
-        bw_pages_list=[1, 3],
-        color_low_pages=[2],
+        color_low_pages=[1, 2, 3],
         color_high_pages=[4],
         color_full_pages=[5],
         copies=1,
         color_mode="auto",
-        price_bw=500,
         price_low=2000,
         price_high=2500,
         price_full=3000
     )
-    assert price_auto == 8500, f"Expected 8500, got {price_auto}"
+    assert price_auto == 11500, f"Expected 11500, got {price_auto}"
 
-    # All BW mode: 5 pages * 500 = 2500
-    price_all_bw = calculate_price(
-        total_pages=5,
-        color_pages_list=[2, 4, 5],
-        bw_pages_list=[1, 3],
-        copies=1,
-        color_mode="bw",
-        price_bw=500
-    )
-    assert price_all_bw == 2500, f"Expected 2500, got {price_all_bw}"
-
-    # Custom range: pages 1-2 (1 BW + 1 Color Low) * 2 copies = (500 + 2000) * 2 = 5000
+    # Custom range: pages 1-2 (2 Color Low) * 2 copies = (2 * 2000) * 2 = 8000
     price_custom_range = calculate_price(
         total_pages=5,
-        color_pages_list=[2, 4, 5],
-        bw_pages_list=[1, 3],
-        color_low_pages=[2],
+        color_low_pages=[1, 2, 3],
         color_high_pages=[4],
         color_full_pages=[5],
         copies=2,
         color_mode="auto",
         page_range="1-2",
-        price_bw=500,
         price_low=2000,
         price_high=2500,
         price_full=3000
     )
-    assert price_custom_range == 5000, f"Expected 5000, got {price_custom_range}"
+    assert price_custom_range == 8000, f"Expected 8000, got {price_custom_range}"
     print("   ✅ PyMuPDF analysis and 3-tier color pricing engine verified successfully.\n")
 
     # 3. Test Hermes AI Agent Decisions
@@ -247,14 +235,13 @@ async def run_tests():
 
     # Simulation: User requests print setting revision
     dec_revise_settings = await process_user_turn(
-        user_message="Tolong cetak 3 rangkap hitam putih ya",
+        user_message="Tolong cetak 3 rangkap ya",
         session=session,
         conversation_history=history
     )
     print(f"   • Revise Settings Action: {dec_revise_settings.action.value}")
     assert dec_revise_settings.action == HermesAction.REVISE_PRINT_SETTINGS
     assert dec_revise_settings.updated_copies == 3
-    assert dec_revise_settings.updated_color_mode == "bw"
 
     # Simulation: User requests content/design revision (Admin handover)
     dec_revise_content = await process_user_turn(
@@ -316,17 +303,20 @@ async def run_tests():
     assert data_health["status"] == "healthy"
     print(f"   • Health check: {data_health['status']}")
 
-    # Webhook chat message
-    res_webhook = client.post(
-        "/webhook/fonnte",
-        data={
-            "sender": test_phone,
-            "message": "Halo hermes, toko buka sampai jam berapa?",
-            "name": "Budi Santoso"
-        }
-    )
-    assert res_webhook.status_code == 200
-    print(f"   • Webhook text response: {res_webhook.json()}")
+    # Webhook chat message (Mock Fonnte dispatch to preserve real message quota)
+    with patch("app.main.send_whatsapp_message", new_callable=AsyncMock) as mock_send:
+        mock_send.return_value = {"status": True, "detail": "mocked"}
+        res_webhook = client.post(
+            "/webhook/fonnte",
+            data={
+                "sender": test_phone,
+                "message": "Halo hermes, toko buka sampai jam berapa?",
+                "name": "Budi Santoso"
+            }
+        )
+        assert res_webhook.status_code == 200
+        assert mock_send.called, "WhatsApp reply must be dispatched via send_whatsapp_message"
+        print(f"   • Webhook text response: {res_webhook.json()} (Mocked WhatsApp dispatch)")
 
     print("\n================================================================")
     print("🎉 ALL TESTS PASSED! THE SYSTEM IS 100% PRODUCTION READY.")

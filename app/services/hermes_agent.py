@@ -22,18 +22,18 @@ Sifat & Gaya Komunikasi Anda:
 - Menggunakan formatting WhatsApp standar (*tebal*, _miring_, `monospace`, bullet points, dan emoji relevan seperti 🖨️, 📄, ⚙️, ✨, 🙏).
 - Jangan berbelit-belit, berikan informasi yang jelas dan to the point.
 
-Kategori Tarif Percetakan:
-1. Hitam-Putih: Rp 500 / halaman
-2. Berwarna < 50%: Rp 2.000 / halaman
-3. Berwarna >= 50%: Rp 2.500 / halaman
-4. Full Warna (Block/Cover/Foto): Rp 3.000 / halaman
+Kategori Tarif Percetakan (Hanya Ada 3 Kategori Warna, TIDAK ADA Kategori Hitam-Putih):
+1. Berwarna < 50%: Rp 2.000 / halaman
+2. Berwarna >= 50%: Rp 2.500 / halaman
+3. Full Warna (Block/Cover/Foto): Rp 3.000 / halaman
+PENTING: Percetakan kami TIDAK memiliki kategori Hitam-Putih. Semua dokumen teks biasa atau dengan minim warna masuk ke kategori Berwarna < 50% (Rp 2.000/halaman). Jangan pernah menyebutkan tarif Hitam-Putih atau Rp 500 kepada pelanggan.
 
 Tugas Utama Anda:
 1. NEW_DOCUMENT_SUMMARY:
    Jika menerima dokumen PDF baru:
    - Berikan ringkasan singkat padat (1-3 kalimat) mengenai isi dokumen (misal: "Dokumen ini adalah draf proposal skripsi...", "File ini berupa CV/Resume...", atau "Dokumen pindaian/scan...").
-   - Sampaikan hasil deteksi: Jumlah halaman, rincian kategori warna (Hitam-Putih, Warna < 50%, Warna >= 50%, Full Warna), ukuran kertas, dan orientasi.
-   - Sampaikan rincian pengaturan cetak bawaan (default: 1 rangkap, mode warna sesuai deteksi, seluruh halaman).
+   - Sampaikan hasil deteksi: Jumlah halaman, rincian kategori warna (Warna < 50%, Warna >= 50%, Full Warna), ukuran kertas, dan orientasi.
+   - Sampaikan rincian pengaturan cetak bawaan (default: 1 rangkap, seluruh halaman).
    - Cantumkan estimasi total biaya cetak.
    - Tanyakan dengan ramah apakah pelanggan ingin langsung mencetak dokumen tersebut, atau ingin mengubah pengaturan cetak, atau perlu perbaikan/revisi isi/desain dokumen.
 
@@ -43,8 +43,8 @@ Tugas Utama Anda:
    - Beritahu pelanggan bahwa mereka dapat mengambil dokumen setelah proses selesai.
 
 3. REVISE_PRINT_SETTINGS:
-   Jika pelanggan ingin mengubah parameter cetak (jumlah rangkap, mode warna hitam-putih/warna, rentang halaman):
-   - Ekstrak nilai baru: `updated_copies` (integer), `updated_color_mode` ("bw", "color", atau "auto"), `updated_page_range` (misal: "1-5", "1,3,5", "all").
+   Jika pelanggan ingin mengubah parameter cetak (jumlah rangkap, rentang halaman):
+   - Ekstrak nilai baru: `updated_copies` (integer), `updated_page_range` (misal: "1-5", "1,3,5", "all").
    - Tampilkan pembaruan pengaturan tersebut dan tanyakan konfirmasi akhir untuk mencetak.
 
 4. REVISE_CONTENT_ADMIN:
@@ -55,7 +55,7 @@ Tugas Utama Anda:
 
 5. CHAT:
    Jika pelanggan sekadar menyapa, bertanya harga, jam buka percetakan, atau konsultasi umum:
-   - Jawab dengan ramah dan informatif sertakan rincian tarif percetakan (Hitam-Putih Rp 500, Warna < 50% Rp 2.000, Warna >= 50% Rp 2.500, Full Warna Rp 3.000).
+   - Jawab dengan ramah dan informatif. Jika bertanya tarif, sampaikan hanya 3 kategori: Berwarna < 50% Rp 2.000, Berwarna >= 50% Rp 2.500, Full Warna Rp 3.000.
 
 6. CANCEL_PRINT:
    Jika pelanggan membatalkan proses cetak:
@@ -89,16 +89,14 @@ def _build_rule_based_decision(
             summary_text = "Dokumen ini merupakan berkas laporan resmi."
 
         color_breakdown: List[str] = []
-        if pdf_info.bw_pages_count > 0:
-            color_breakdown.append(f"{pdf_info.bw_pages_count} hal Hitam-Putih (Rp {settings.PRICE_PER_PAGE_BW:,})")
         if pdf_info.color_low_count > 0:
-            color_breakdown.append(f"{pdf_info.color_low_count} hal Warna < 50% (Rp {settings.PRICE_COLOR_LOW:,})")
+            color_breakdown.append(f"{pdf_info.color_low_count} hal Berwarna < 50% (Rp {settings.PRICE_COLOR_LOW:,})")
         if pdf_info.color_high_count > 0:
-            color_breakdown.append(f"{pdf_info.color_high_count} hal Warna ≥ 50% (Rp {settings.PRICE_COLOR_HIGH:,})")
+            color_breakdown.append(f"{pdf_info.color_high_count} hal Berwarna ≥ 50% (Rp {settings.PRICE_COLOR_HIGH:,})")
         if pdf_info.color_full_count > 0:
             color_breakdown.append(f"{pdf_info.color_full_count} hal Full Warna (Rp {settings.PRICE_COLOR_FULL:,})")
 
-        color_desc = ", ".join(color_breakdown) if color_breakdown else "Semua halaman Hitam-Putih"
+        color_desc = ", ".join(color_breakdown) if color_breakdown else f"{pdf_info.total_pages} hal Berwarna < 50%"
 
         reply = (
             f"👋 Halo *{session.customer_name or 'Kak'}*, saya *Hermes* dari *{settings.STORE_NAME}*! 🖨️✨\n\n"
@@ -110,12 +108,12 @@ def _build_rule_based_decision(
             f"• Kertas & Orientasi: *{pdf_info.paper_size}* ({pdf_info.orientation})\n\n"
             f"⚙️ *Rekomendasi Pengaturan Cetak:*\n"
             f"• Jumlah: *1 Rangkap*\n"
-            f"• Mode: *{'Warna Otomatis' if pdf_info.is_color_document else 'Hitam-Putih'}*\n"
+            f"• Mode: *Warna*\n"
             f"• Halaman: *Semua (1-{pdf_info.total_pages})*\n"
             f"💰 *Estimasi Biaya:* *Rp {pdf_info.estimated_price:,}*\n\n"
             f"❓ *Bagaimana Kak?*\n"
             f"• Balas *'Cetak'* untuk langsung mencetak dokumen ini.\n"
-            f"• Atau sebutkan jika ingin ubah rangkap/warna/halaman (misal: _'Cetak 2 rangkap hitam putih'_).\n"
+            f"• Atau sebutkan jika ingin ubah rangkap/halaman (misal: _'Cetak 2 rangkap'_ atau _'Hanya halaman 1 sampai 5'_).\n"
             f"• Jika butuh edit isi/desain dokumen, silakan tulis revisinya agar dibantu oleh Admin kami. 🙏"
         )
         return HermesDecision(
@@ -242,11 +240,11 @@ def _build_rule_based_decision(
     return HermesDecision(
         action=HermesAction.CHAT,
         reply_message=(
-            f"Halo Kak! Kami siap membantu mencetak dokumen Anda di *{settings.STORE_NAME}*. 🖨️✨\n"
-            f"• Tarif Hitam-Putih: Rp {settings.PRICE_PER_PAGE_BW:,}/halaman\n"
-            f"• Tarif Berwarna < 50%: Rp {settings.PRICE_COLOR_LOW:,}/halaman\n"
-            f"• Tarif Berwarna ≥ 50%: Rp {settings.PRICE_COLOR_HIGH:,}/halaman\n"
-            f"• Tarif Full Warna: Rp {settings.PRICE_COLOR_FULL:,}/halaman\n\n"
+            f"Halo Kak! Kami siap membantu mencetak dokumen Anda di *{settings.STORE_NAME}*. 🖨️✨\n\n"
+            f"Tarif Cetak Dokumen:\n"
+            f"• Berwarna < 50%: Rp {settings.PRICE_COLOR_LOW:,}/halaman\n"
+            f"• Berwarna ≥ 50%: Rp {settings.PRICE_COLOR_HIGH:,}/halaman\n"
+            f"• Full Warna: Rp {settings.PRICE_COLOR_FULL:,}/halaman\n\n"
             "Ada file yang ingin dicetak sekarang? Cukup kirimkan dokumen PDF-nya ke sini ya! 📄"
         ),
         reasoning="Rule-based heuristic: General chat."
@@ -339,7 +337,6 @@ async def process_user_turn(
             f"DOKUMEN BARU DIUNGGAH:\n"
             f"- Nama File: {pdf_info.original_filename}\n"
             f"- Total Halaman: {pdf_info.total_pages}\n"
-            f"- Halaman Hitam-Putih ({pdf_info.bw_pages_count}): {pdf_info.bw_pages_list}\n"
             f"- Halaman Warna < 50% ({pdf_info.color_low_count}): {pdf_info.color_low_pages}\n"
             f"- Halaman Warna >= 50% ({pdf_info.color_high_count}): {pdf_info.color_high_pages}\n"
             f"- Halaman Full Warna ({pdf_info.color_full_count}): {pdf_info.color_full_pages}\n"
@@ -353,17 +350,18 @@ async def process_user_turn(
             f"DOKUMEN AKTIF SAAT INI:\n"
             f"- File: {session.original_filename}\n"
             f"- Ringkasan Sebelumnya: {session.document_summary}\n"
-            f"- Pengaturan Saat Ini: {session.copies} Rangkap, Mode: {session.color_mode}, Halaman: {session.page_range}\n"
+            f"- Pengaturan Saat Ini: {session.copies} Rangkap, Halaman: {session.page_range}\n"
             f"- Estimasi Biaya: Rp {session.estimated_price}"
         )
 
     prompt = (
         f"KONDISI PERCAKAPAN SAAT INI:\n"
         f"• Nama Toko Percetakan: {settings.STORE_NAME}\n"
-        f"• Tarif BW: Rp {settings.PRICE_PER_PAGE_BW}/lembar\n"
-        f"• Tarif Berwarna < 50%: Rp {settings.PRICE_COLOR_LOW}/lembar\n"
-        f"• Tarif Berwarna >= 50%: Rp {settings.PRICE_COLOR_HIGH}/lembar\n"
-        f"• Tarif Full Warna: Rp {settings.PRICE_COLOR_FULL}/lembar\n"
+        f"• Kategori Tarif Cetak (HANYA ADA 3 KATEGORI, TIDAK ADA KATEGORI HITAM-PUTIH):\n"
+        f"  1. Berwarna < 50%: Rp {settings.PRICE_COLOR_LOW}/lembar\n"
+        f"  2. Berwarna >= 50%: Rp {settings.PRICE_COLOR_HIGH}/lembar\n"
+        f"  3. Full Warna: Rp {settings.PRICE_COLOR_FULL}/lembar\n"
+        f"  (PENTING: Jangan pernah sebutkan tarif Hitam-Putih atau Rp 500. Dokumen biasa/teks masuk ke Berwarna < 50%).\n"
         f"• Nama Pelanggan: {session.customer_name or 'Pelanggan'}\n"
         f"• Status Sesi: {session.session_status.value}\n\n"
         f"INFORMASI DOKUMEN:\n{doc_info_text}\n\n"

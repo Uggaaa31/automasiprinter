@@ -177,9 +177,9 @@ File `.env` adalah pusat pengaturan seluruh sistem Hermes Print Automation. Beri
 | `PRINTER_OS` | Hardware | Sistem Operasi PC host (`windows` / `linux`) | `windows` |
 | `PRINTER_NAME` | Hardware | Nama printer di OS (kosongkan untuk default) | `EPSON L3110 Series` |
 | `SUMATRAPDF_PATH` | Hardware | Lokasi file SumatraPDF.exe | `C:\Users\lenov\AppData\Local\SumatraPDF\SumatraPDF.exe` |
-| `PRINT_SIMULATION_MODE`| Hardware | Mode simulasi cetak (`True` / `False`) | `True` |
-| `PRICE_PER_PAGE_BW` | Bisnis | Tarif cetak per lembar Hitam-Putih (IDR) | `500` |
-| `PRICE_PER_PAGE_COLOR`| Bisnis | Tarif cetak per lembar Berwarna (IDR) | `1500` |
+| `PRICE_COLOR_LOW` | Bisnis | Tarif cetak per lembar Berwarna < 50% (IDR) | `2000` |
+| `PRICE_COLOR_HIGH`| Bisnis | Tarif cetak per lembar Berwarna >= 50% (IDR) | `2500` |
+| `PRICE_COLOR_FULL`| Bisnis | Tarif cetak per lembar Full Warna (IDR) | `3000` |
 | `STORE_NAME` | Bisnis | Nama Toko / Usaha Percetakan Anda | `Percetakan Anugrah Indah` |
 | `STORAGE_DIR` | Sistem | Folder penyimpanan sementara PDF | `storage/temp_pdfs` |
 | `DATABASE_PATH` | Sistem | Lokasi file database SQLite | `storage/hermes.db` |
@@ -246,10 +246,9 @@ AI_MODEL=gpt-4o-mini
   - `False`: Ubah ke `False` saat kabel USB printer fisik sudah terhubung dan Anda ingin dokumen dicetak riil secara fisik.
 
 #### 4. Setup Tarif Cetak & Profil Bisnis
-- **`PRICE_PER_PAGE_BW`**:
-  - Tarif cetak per halaman Hitam-Putih dalam Rupiah (default: `500`).
+Sistem menggunakan 3 kategori tarif cetak warna (tidak ada kategori hitam-putih terpisah; semua dokumen teks biasa dihitung masuk ke kategori Berwarna < 50%):
 - **`PRICE_COLOR_LOW`**:
-  - Tarif cetak per halaman Berwarna kurang dari 50% / low coverage (default: `2000`).
+  - Tarif cetak per halaman Berwarna kurang dari 50% / low coverage / teks standar (default: `2000`).
 - **`PRICE_COLOR_HIGH`**:
   - Tarif cetak per halaman Berwarna lebih dari 50% / high coverage (default: `2500`).
 - **`PRICE_COLOR_FULL`**:
