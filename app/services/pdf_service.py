@@ -48,32 +48,68 @@ def detect_paper_size_and_dimensions(width: float, height: float) -> Tuple[str, 
     return f"Custom ({w_mm}x{h_mm} mm)", dim_str
 
 
-def is_page_color(page: fitz.Page, dpi: int = 36) -> bool:
-    """Accurately detect whether a page contains color content.
+def classify_page_color(page: fitz.Page, dpi: int = 36) -> Tuple[str, float]:
+    """Accurately classify page color tier and measure coverage percentage.
     
-    Renders the page to a low-res RGB pixmap and measures channel divergence
-    using NumPy. Filters out grayscale JPEG artifacts and antialiasing noise.
+    Returns:
+        (category, coverage_pct)
+        - 'BW': Hitam-putih murni / grayscale (Rp 500)
+        - 'COLOR_LOW': Warna < 50% luas/konten (Rp 2.000)
+        - 'COLOR_HIGH': Warna >= 50% luas/konten (Rp 2.500)
+        - 'COLOR_FULL': Full warna (blok warna tebal, poster, foto penuh) (Rp 3.000)
     """
     try:
         pix = page.get_pixmap(dpi=dpi, colorspace=fitz.csRGB)
         samples = np.frombuffer(pix.samples, dtype=np.uint8).reshape((pix.height, pix.width, 3))
-        
+        total_pixels = pix.height * pix.width
+
         r = samples[:, :, 0].astype(np.int32)
         g = samples[:, :, 1].astype(np.int32)
         b = samples[:, :, 2].astype(np.int32)
 
-        # Difference between color channels
+        # Difference between color channels (filters out grayscale/black/white)
         rg_diff = np.abs(r - g)
         gb_diff = np.abs(g - b)
         rb_diff = np.abs(r - b)
         max_diff = np.maximum(rg_diff, np.maximum(gb_diff, rb_diff))
 
-        # Threshold > 18 ignores slight compression artifacts; > 30 pixels confirms intentional color
-        color_pixels = np.count_nonzero(max_diff > 18)
-        return bool(color_pixels > 30)
+        # Colored pixels
+        color_mask = max_diff > 18
+        color_pixels = np.count_nonzero(color_mask)
+
+        # Non-white pixels (pixels with printed ink/content)
+        ink_mask = (r < 240) | (g < 240) | (b < 240)
+        ink_pixels = np.count_nonzero(ink_mask)
+
+        if color_pixels <= 30:
+            return "BW", 0.0
+
+        # Page-wide coverage (colored pixels vs total physical sheet area)
+        page_coverage = color_pixels / total_pixels
+        
+        # Ink-based color ratio (colored content vs total printed ink area)
+        ink_ratio = (color_pixels / ink_pixels) if ink_pixels > 0 else 0.0
+
+        # 1. Full Warna: background berwarna pekat atau foto full halaman (>= 40% luas total atau >= 80% dari tinta dengan area luas)
+        if page_coverage >= 0.40 or (ink_ratio >= 0.80 and page_coverage >= 0.25):
+            return "COLOR_FULL", page_coverage * 100
+
+        # 2. Warna >= 50%: warna dominan pada konten (>= 50% dari total tinta atau >= 18% luas halaman)
+        elif ink_ratio >= 0.50 or page_coverage >= 0.18:
+            return "COLOR_HIGH", max(page_coverage, ink_ratio) * 100
+
+        # 3. Warna < 50%: warna ringan (logo, kop surat, grafik kecil, teks sub-judul berwarna)
+        else:
+            return "COLOR_LOW", max(page_coverage, ink_ratio) * 100
+
     except Exception:
-        # Fallback to black and white on error
-        return False
+        return "BW", 0.0
+
+
+def is_page_color(page: fitz.Page, dpi: int = 36) -> bool:
+    """Helper for backward compatibility."""
+    cat, _ = classify_page_color(page, dpi=dpi)
+    return cat != "BW"
 
 
 def parse_page_range(range_str: str, max_pages: int) -> Set[int]:
@@ -112,15 +148,22 @@ def calculate_price(
     total_pages: int,
     color_pages_list: List[int],
     bw_pages_list: List[int],
+    color_low_pages: Optional[List[int]] = None,
+    color_high_pages: Optional[List[int]] = None,
+    color_full_pages: Optional[List[int]] = None,
     copies: int = 1,
     color_mode: str = "auto",
     page_range: str = "all",
     price_bw: Optional[int] = None,
-    price_color: Optional[int] = None
+    price_low: Optional[int] = None,
+    price_high: Optional[int] = None,
+    price_full: Optional[int] = None
 ) -> int:
-    """Calculate the total printing cost based on settings and detected page colors."""
+    """Calculate the total printing cost based on settings and the 3-tier color pricing."""
     price_bw = price_bw if price_bw is not None else settings.PRICE_PER_PAGE_BW
-    price_color = price_color if price_color is not None else settings.PRICE_PER_PAGE_COLOR
+    price_low = price_low if price_low is not None else settings.PRICE_COLOR_LOW
+    price_high = price_high if price_high is not None else settings.PRICE_COLOR_HIGH
+    price_full = price_full if price_full is not None else settings.PRICE_COLOR_FULL
     copies = max(1, copies)
 
     selected_pages = parse_page_range(page_range, total_pages)
@@ -128,17 +171,28 @@ def calculate_price(
 
     if color_mode == "bw":
         return selected_count * price_bw * copies
-    elif color_mode == "color":
-        return selected_count * price_color * copies
-    else:  # 'auto' mode: charge color price for color pages, bw price for bw pages
-        color_set = set(color_pages_list)
-        bw_set = set(bw_pages_list)
-        
-        target_color_count = len(selected_pages.intersection(color_set))
-        target_bw_count = len(selected_pages.intersection(bw_set))
 
-        subtotal = (target_color_count * price_color) + (target_bw_count * price_bw)
-        return subtotal * copies
+    low_set = set(color_low_pages or [])
+    high_set = set(color_high_pages or [])
+    full_set = set(color_full_pages or [])
+    bw_set = set(bw_pages_list or [])
+
+    # If color tier breakdown is not provided, fallback to color_pages_list as low tier
+    if not (low_set or high_set or full_set):
+        color_set = set(color_pages_list or [])
+        low_set = color_set
+
+    count_low = len(selected_pages.intersection(low_set))
+    count_high = len(selected_pages.intersection(high_set))
+    count_full = len(selected_pages.intersection(full_set))
+    count_bw = len(selected_pages.intersection(bw_set))
+
+    if color_mode == "color":
+        subtotal = ((count_low + count_bw) * price_low) + (count_high * price_high) + (count_full * price_full)
+    else:  # 'auto' mode
+        subtotal = (count_bw * price_bw) + (count_low * price_low) + (count_high * price_high) + (count_full * price_full)
+
+    return subtotal * copies
 
 
 async def download_pdf_from_url(url: str, original_filename: Optional[str] = None) -> str:
@@ -176,6 +230,9 @@ def analyze_pdf(file_path: str, original_filename: Optional[str] = None) -> PDFA
 
     color_pages: List[int] = []
     bw_pages: List[int] = []
+    color_low_pages: List[int] = []
+    color_high_pages: List[int] = []
+    color_full_pages: List[int] = []
     orientations: Set[str] = set()
     paper_sizes: Set[str] = set()
     dimensions_set: Set[str] = set()
@@ -198,11 +255,18 @@ def analyze_pdf(file_path: str, original_filename: Optional[str] = None) -> PDFA
         paper_sizes.add(size_name)
         dimensions_set.add(dim_str)
 
-        # Color analysis
-        if is_page_color(page):
-            color_pages.append(page_num)
-        else:
+        # Color analysis with 3-tier categorization (<50%, >=50%, full)
+        color_cat, _ = classify_page_color(page)
+        if color_cat == "BW":
             bw_pages.append(page_num)
+        else:
+            color_pages.append(page_num)
+            if color_cat == "COLOR_LOW":
+                color_low_pages.append(page_num)
+            elif color_cat == "COLOR_HIGH":
+                color_high_pages.append(page_num)
+            elif color_cat == "COLOR_FULL":
+                color_full_pages.append(page_num)
 
         # Text extraction sampling (first 3 pages, middle page, last page for rich context)
         if page_num <= 4 or page_num == total_pages or (page_num == (total_pages // 2)):
@@ -234,6 +298,9 @@ def analyze_pdf(file_path: str, original_filename: Optional[str] = None) -> PDFA
         total_pages=total_pages,
         color_pages_list=color_pages,
         bw_pages_list=bw_pages,
+        color_low_pages=color_low_pages,
+        color_high_pages=color_high_pages,
+        color_full_pages=color_full_pages,
         copies=1,
         color_mode="auto",
         page_range="all"
@@ -247,6 +314,12 @@ def analyze_pdf(file_path: str, original_filename: Optional[str] = None) -> PDFA
         bw_pages_count=len(bw_pages),
         color_pages_list=color_pages,
         bw_pages_list=bw_pages,
+        color_low_pages=color_low_pages,
+        color_high_pages=color_high_pages,
+        color_full_pages=color_full_pages,
+        color_low_count=len(color_low_pages),
+        color_high_count=len(color_high_pages),
+        color_full_count=len(color_full_pages),
         paper_size=aggregated_size,
         dimensions_mm=aggregated_dim,
         orientation=aggregated_orientation,

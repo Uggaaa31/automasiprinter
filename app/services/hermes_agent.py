@@ -22,11 +22,17 @@ Sifat & Gaya Komunikasi Anda:
 - Menggunakan formatting WhatsApp standar (*tebal*, _miring_, `monospace`, bullet points, dan emoji relevan seperti 🖨️, 📄, ⚙️, ✨, 🙏).
 - Jangan berbelit-belit, berikan informasi yang jelas dan to the point.
 
+Kategori Tarif Percetakan:
+1. Hitam-Putih: Rp 500 / halaman
+2. Berwarna < 50%: Rp 2.000 / halaman
+3. Berwarna >= 50%: Rp 2.500 / halaman
+4. Full Warna (Block/Cover/Foto): Rp 3.000 / halaman
+
 Tugas Utama Anda:
 1. NEW_DOCUMENT_SUMMARY:
    Jika menerima dokumen PDF baru:
    - Berikan ringkasan singkat padat (1-3 kalimat) mengenai isi dokumen (misal: "Dokumen ini adalah draf proposal skripsi...", "File ini berupa CV/Resume...", atau "Dokumen pindaian/scan...").
-   - Sampaikan hasil deteksi: Jumlah halaman, halaman berwarna vs hitam-putih, ukuran kertas, dan orientasi.
+   - Sampaikan hasil deteksi: Jumlah halaman, rincian kategori warna (Hitam-Putih, Warna < 50%, Warna >= 50%, Full Warna), ukuran kertas, dan orientasi.
    - Sampaikan rincian pengaturan cetak bawaan (default: 1 rangkap, mode warna sesuai deteksi, seluruh halaman).
    - Cantumkan estimasi total biaya cetak.
    - Tanyakan dengan ramah apakah pelanggan ingin langsung mencetak dokumen tersebut, atau ingin mengubah pengaturan cetak, atau perlu perbaikan/revisi isi/desain dokumen.
@@ -49,7 +55,7 @@ Tugas Utama Anda:
 
 5. CHAT:
    Jika pelanggan sekadar menyapa, bertanya harga, jam buka percetakan, atau konsultasi umum:
-   - Jawab dengan ramah dan informatif.
+   - Jawab dengan ramah dan informatif sertakan rincian tarif percetakan (Hitam-Putih Rp 500, Warna < 50% Rp 2.000, Warna >= 50% Rp 2.500, Full Warna Rp 3.000).
 
 6. CANCEL_PRINT:
    Jika pelanggan membatalkan proses cetak:
@@ -82,18 +88,25 @@ def _build_rule_based_decision(
         elif "laporan" in pdf_info.original_filename.lower() or "laporan" in pdf_info.text_excerpt.lower():
             summary_text = "Dokumen ini merupakan berkas laporan resmi."
 
-        color_desc = (
-            f"{pdf_info.color_pages_count} halaman berwarna, {pdf_info.bw_pages_count} hitam-putih"
-            if pdf_info.is_color_document
-            else "Semua halaman Hitam-Putih (Grayscale)"
-        )
+        color_breakdown: List[str] = []
+        if pdf_info.bw_pages_count > 0:
+            color_breakdown.append(f"{pdf_info.bw_pages_count} hal Hitam-Putih (Rp {settings.PRICE_PER_PAGE_BW:,})")
+        if pdf_info.color_low_count > 0:
+            color_breakdown.append(f"{pdf_info.color_low_count} hal Warna < 50% (Rp {settings.PRICE_COLOR_LOW:,})")
+        if pdf_info.color_high_count > 0:
+            color_breakdown.append(f"{pdf_info.color_high_count} hal Warna ≥ 50% (Rp {settings.PRICE_COLOR_HIGH:,})")
+        if pdf_info.color_full_count > 0:
+            color_breakdown.append(f"{pdf_info.color_full_count} hal Full Warna (Rp {settings.PRICE_COLOR_FULL:,})")
+
+        color_desc = ", ".join(color_breakdown) if color_breakdown else "Semua halaman Hitam-Putih"
 
         reply = (
             f"👋 Halo *{session.customer_name or 'Kak'}*, saya *Hermes* dari *{settings.STORE_NAME}*! 🖨️✨\n\n"
             f"📄 *Analisis Dokumen:*\n"
             f"• File: `{pdf_info.original_filename}`\n"
             f"• Ringkasan: {summary_text}\n"
-            f"• Total Halaman: *{pdf_info.total_pages} halaman* ({color_desc})\n"
+            f"• Total Halaman: *{pdf_info.total_pages} halaman*\n"
+            f"  └ Rincian: _{color_desc}_\n"
             f"• Kertas & Orientasi: *{pdf_info.paper_size}* ({pdf_info.orientation})\n\n"
             f"⚙️ *Rekomendasi Pengaturan Cetak:*\n"
             f"• Jumlah: *1 Rangkap*\n"
@@ -229,9 +242,11 @@ def _build_rule_based_decision(
     return HermesDecision(
         action=HermesAction.CHAT,
         reply_message=(
-            f"Halo Kak! Kami siap membantu mencetak dokumen Anda di *{settings.STORE_NAME}*. 🖨️\n"
+            f"Halo Kak! Kami siap membantu mencetak dokumen Anda di *{settings.STORE_NAME}*. 🖨️✨\n"
             f"• Tarif Hitam-Putih: Rp {settings.PRICE_PER_PAGE_BW:,}/halaman\n"
-            f"• Tarif Warna: Rp {settings.PRICE_PER_PAGE_COLOR:,}/halaman\n\n"
+            f"• Tarif Berwarna < 50%: Rp {settings.PRICE_COLOR_LOW:,}/halaman\n"
+            f"• Tarif Berwarna ≥ 50%: Rp {settings.PRICE_COLOR_HIGH:,}/halaman\n"
+            f"• Tarif Full Warna: Rp {settings.PRICE_COLOR_FULL:,}/halaman\n\n"
             "Ada file yang ingin dicetak sekarang? Cukup kirimkan dokumen PDF-nya ke sini ya! 📄"
         ),
         reasoning="Rule-based heuristic: General chat."
@@ -324,8 +339,10 @@ async def process_user_turn(
             f"DOKUMEN BARU DIUNGGAH:\n"
             f"- Nama File: {pdf_info.original_filename}\n"
             f"- Total Halaman: {pdf_info.total_pages}\n"
-            f"- Halaman Berwarna ({pdf_info.color_pages_count}): {pdf_info.color_pages_list}\n"
             f"- Halaman Hitam-Putih ({pdf_info.bw_pages_count}): {pdf_info.bw_pages_list}\n"
+            f"- Halaman Warna < 50% ({pdf_info.color_low_count}): {pdf_info.color_low_pages}\n"
+            f"- Halaman Warna >= 50% ({pdf_info.color_high_count}): {pdf_info.color_high_pages}\n"
+            f"- Halaman Full Warna ({pdf_info.color_full_count}): {pdf_info.color_full_pages}\n"
             f"- Ukuran Kertas: {pdf_info.paper_size}\n"
             f"- Orientasi: {pdf_info.orientation}\n"
             f"- Estimasi Biaya Bawaan: Rp {pdf_info.estimated_price}\n"
@@ -343,7 +360,10 @@ async def process_user_turn(
     prompt = (
         f"KONDISI PERCAKAPAN SAAT INI:\n"
         f"• Nama Toko Percetakan: {settings.STORE_NAME}\n"
-        f"• Tarif BW: Rp {settings.PRICE_PER_PAGE_BW}/lembar, Tarif Warna: Rp {settings.PRICE_PER_PAGE_COLOR}/lembar\n"
+        f"• Tarif BW: Rp {settings.PRICE_PER_PAGE_BW}/lembar\n"
+        f"• Tarif Berwarna < 50%: Rp {settings.PRICE_COLOR_LOW}/lembar\n"
+        f"• Tarif Berwarna >= 50%: Rp {settings.PRICE_COLOR_HIGH}/lembar\n"
+        f"• Tarif Full Warna: Rp {settings.PRICE_COLOR_FULL}/lembar\n"
         f"• Nama Pelanggan: {session.customer_name or 'Pelanggan'}\n"
         f"• Status Sesi: {session.session_status.value}\n\n"
         f"INFORMASI DOKUMEN:\n{doc_info_text}\n\n"

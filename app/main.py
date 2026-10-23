@@ -5,6 +5,7 @@ physical printing spooling, and admin escalation.
 """
 
 import logging
+import os
 from contextlib import asynccontextmanager
 from typing import Any, Dict, Optional
 
@@ -192,6 +193,9 @@ async def fonnte_webhook(request: Request):
                 page_count=analysis.total_pages,
                 color_pages_count=analysis.color_pages_count,
                 bw_pages_count=analysis.bw_pages_count,
+                color_low_pages_count=analysis.color_low_count,
+                color_high_pages_count=analysis.color_high_count,
+                color_full_pages_count=analysis.color_full_count,
                 paper_size=analysis.paper_size,
                 orientation=analysis.orientation,
                 copies=1,
@@ -305,10 +309,23 @@ async def fonnte_webhook(request: Request):
 
         # Recalculate price if document is loaded
         recalculated_price = session.estimated_price
-        if session.page_count > 0:
+        if session.current_file_path and os.path.exists(session.current_file_path):
+            analysis = analyze_pdf(session.current_file_path)
+            recalculated_price = calculate_price(
+                total_pages=analysis.total_pages,
+                color_pages_list=analysis.color_pages_list,
+                bw_pages_list=analysis.bw_pages_list,
+                color_low_pages=analysis.color_low_pages,
+                color_high_pages=analysis.color_high_pages,
+                color_full_pages=analysis.color_full_pages,
+                copies=new_copies,
+                color_mode=new_color_mode,
+                page_range=new_page_range
+            )
+        elif session.page_count > 0:
             recalculated_price = calculate_price(
                 total_pages=session.page_count,
-                color_pages_list=[],  # simplified or based on mode
+                color_pages_list=[],
                 bw_pages_list=[],
                 copies=new_copies,
                 color_mode=new_color_mode,

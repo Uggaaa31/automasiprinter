@@ -51,6 +51,15 @@ def init_db() -> None:
             )
             """
         )
+
+        # Migration: ensure color tier columns exist in sessions table
+        existing_cols = [c[1] for c in cursor.execute("PRAGMA table_info(sessions)").fetchall()]
+        for col_name in ["color_low_pages_count", "color_high_pages_count", "color_full_pages_count"]:
+            if col_name not in existing_cols:
+                try:
+                    cursor.execute(f"ALTER TABLE sessions ADD COLUMN {col_name} INTEGER DEFAULT 0;")
+                except Exception:
+                    pass
         
         # Message log table for multi-turn LLM context
         cursor.execute(
@@ -159,6 +168,9 @@ def reset_session_file(phone_number: str) -> SessionData:
         page_count=0,
         color_pages_count=0,
         bw_pages_count=0,
+        color_low_pages_count=0,
+        color_high_pages_count=0,
+        color_full_pages_count=0,
         paper_size="A4",
         orientation="Potret",
         document_summary="",

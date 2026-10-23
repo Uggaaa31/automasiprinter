@@ -73,11 +73,23 @@ class Settings(BaseSettings):
     # --- Business Pricing Rules (IDR) ---
     PRICE_PER_PAGE_BW: int = Field(
         default=500,
-        description="Standard cost per page for Black and White (IDR)"
+        description="Tarif cetak per halaman Hitam-Putih (IDR)"
+    )
+    PRICE_COLOR_LOW: int = Field(
+        default=2000,
+        description="Tarif cetak warna < 50% per halaman (IDR)"
+    )
+    PRICE_COLOR_HIGH: int = Field(
+        default=2500,
+        description="Tarif cetak warna >= 50% per halaman (IDR)"
+    )
+    PRICE_COLOR_FULL: int = Field(
+        default=3000,
+        description="Tarif cetak full warna per halaman (IDR)"
     )
     PRICE_PER_PAGE_COLOR: int = Field(
-        default=1500,
-        description="Standard cost per page for Color print (IDR)"
+        default=2000,
+        description="Default fallback tarif warna (IDR)"
     )
     STORE_NAME: str = Field(
         default="Hermes Digital Print",

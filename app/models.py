@@ -52,6 +52,12 @@ class PDFAnalysisResult(BaseModel):
     bw_pages_count: int
     color_pages_list: List[int] = Field(default_factory=list)
     bw_pages_list: List[int] = Field(default_factory=list)
+    color_low_pages: List[int] = Field(default_factory=list, description="Halaman warna < 50% (Rp 2.000)")
+    color_high_pages: List[int] = Field(default_factory=list, description="Halaman warna >= 50% (Rp 2.500)")
+    color_full_pages: List[int] = Field(default_factory=list, description="Halaman full warna (Rp 3.000)")
+    color_low_count: int = 0
+    color_high_count: int = 0
+    color_full_count: int = 0
     paper_size: str
     dimensions_mm: str
     orientation: str
@@ -116,6 +122,9 @@ class SessionData(BaseModel):
     page_count: int = 0
     color_pages_count: int = 0
     bw_pages_count: int = 0
+    color_low_pages_count: int = 0
+    color_high_pages_count: int = 0
+    color_full_pages_count: int = 0
     paper_size: str = "A4"
     orientation: str = "Potret"
     document_summary: str = ""

@@ -247,9 +247,13 @@ AI_MODEL=gpt-4o-mini
 
 #### 4. Setup Tarif Cetak & Profil Bisnis
 - **`PRICE_PER_PAGE_BW`**:
-  - Tarif cetak per halaman Hitam-Putih dalam Rupiah (contoh: `500`).
-- **`PRICE_PER_PAGE_COLOR`**:
-  - Tarif cetak per halaman Berwarna dalam Rupiah (contoh: `1500`).
+  - Tarif cetak per halaman Hitam-Putih dalam Rupiah (default: `500`).
+- **`PRICE_COLOR_LOW`**:
+  - Tarif cetak per halaman Berwarna kurang dari 50% / low coverage (default: `2000`).
+- **`PRICE_COLOR_HIGH`**:
+  - Tarif cetak per halaman Berwarna lebih dari 50% / high coverage (default: `2500`).
+- **`PRICE_COLOR_FULL`**:
+  - Tarif cetak per halaman Full Warna / Block / Cover / Foto (default: `3000`).
 - **`STORE_NAME`**:
   - Nama usaha/percetakan Anda yang digunakan oleh AI Hermes saat menyapa pelanggan di WhatsApp (contoh: `Percetakan Anugrah Indah`).
 
