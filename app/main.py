@@ -33,6 +33,7 @@ from app.services.hermes_agent import process_user_turn
 from app.services.pdf_service import (
     analyze_pdf,
     calculate_price,
+    convert_word_to_pdf,
     download_pdf_from_url,
 )
 from app.services.printer_service import (
@@ -169,10 +170,9 @@ async def whatsapp_webhook(request: Request):
         is_pdf_attachment = True
     elif file_url:
         is_pdf_attachment = (
-            file_url.lower().endswith(".pdf") or
-            filename.lower().endswith(".pdf") or
-            (payload.filetype and "pdf" in payload.filetype.lower()) or
-            (payload.filetype and "document" in payload.filetype.lower())
+            any(file_url.lower().endswith(ext) for ext in [".pdf", ".docx", ".doc"]) or
+            any(filename.lower().endswith(ext) for ext in [".pdf", ".docx", ".doc"]) or
+            (payload.filetype and any(t in payload.filetype.lower() for t in ["pdf", "document", "word", "officedocument"]))
         )
 
     # =========================================================================
@@ -182,11 +182,17 @@ async def whatsapp_webhook(request: Request):
         try:
             if local_file_path and os.path.exists(local_file_path):
                 local_pdf_path = local_file_path
-                logger.info("[PDF LOCAL] Using directly received PDF from Baileys: %s", local_pdf_path)
+                logger.info("[DOC LOCAL] Using directly received file from Baileys: %s", local_pdf_path)
             else:
                 logger.info("[PDF DOWNLOAD] Fetching PDF from %s ...", file_url)
                 local_pdf_path = await download_pdf_from_url(file_url, original_filename=filename)
                 logger.info("[PDF SAVED] Stored at: %s", local_pdf_path)
+
+            # Auto-convert Word document (.docx / .doc) to PDF if needed
+            if local_pdf_path.lower().endswith((".docx", ".doc")):
+                logger.info("[WORD CONVERT] Converting Word document %s to PDF...", local_pdf_path)
+                local_pdf_path = convert_word_to_pdf(local_pdf_path)
+                logger.info("[WORD CONVERTED] PDF ready at: %s", local_pdf_path)
 
             # Analyze PDF
             analysis = analyze_pdf(local_pdf_path, original_filename=filename or "document.pdf")

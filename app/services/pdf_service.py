@@ -7,6 +7,7 @@ extracting text for LLM summarization, and calculating print costs.
 
 import os
 import re
+import subprocess
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -18,6 +19,38 @@ import numpy as np
 
 from app.config import settings
 from app.models import PDFAnalysisResult
+
+
+def convert_word_to_pdf(file_path: str) -> str:
+    """Convert a Microsoft Word (.docx or .doc) file to PDF using Microsoft Word COM on Windows."""
+    abs_src = str(Path(file_path).resolve())
+    if not os.path.exists(abs_src):
+        raise FileNotFoundError(f"Word file not found: {abs_src}")
+
+    target_pdf = str(Path(abs_src).with_suffix(".pdf"))
+
+    ps_script = f"""
+    $word = New-Object -ComObject Word.Application
+    $word.Visible = $false
+    $doc = $word.Documents.Open('{abs_src}')
+    $doc.SaveAs('{target_pdf}', 17)
+    $doc.Close()
+    $word.Quit()
+    """
+    try:
+        subprocess.run(
+            ["powershell", "-NoProfile", "-Command", ps_script],
+            check=True,
+            timeout=45,
+            capture_output=True,
+            text=True
+        )
+        if os.path.exists(target_pdf) and os.path.getsize(target_pdf) > 0:
+            return target_pdf
+    except Exception as exc:
+        raise RuntimeError(f"Gagal mengonversi Word ke PDF: {exc}")
+
+    raise RuntimeError("File PDF hasil konversi Word tidak ditemukan.")
 
 
 # Standard Paper Dimensions in PostScript Points (1 pt = 1/72 inch)

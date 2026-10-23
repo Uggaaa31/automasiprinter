@@ -236,7 +236,18 @@ def _build_rule_based_decision(
             reasoning="Rule-based heuristic: Customer confirmed printing."
         )
 
-    # 7. General Chat
+    # 7. Word / Format Inquiries
+    if any(k in msg for k in ["word", "doc", "docx"]):
+        return HermesDecision(
+            action=HermesAction.CHAT,
+            reply_message=(
+                f"Bisa banget Kak! 😊 Kami melayani cetak dokumen format *Microsoft Word* (`.doc` dan `.docx`) serta *PDF*.\n\n"
+                "Silakan langsung kirimkan file dokumen Word Anda ke chat WhatsApp ini ya Kak, sistem kami akan langsung membacanya! 📄🖨️✨"
+            ),
+            reasoning="Rule-based heuristic: Customer inquired about Word format."
+        )
+
+    # 8. General Chat
     return HermesDecision(
         action=HermesAction.CHAT,
         reply_message=(
@@ -245,7 +256,7 @@ def _build_rule_based_decision(
             f"• Berwarna < 50%: Rp {settings.PRICE_COLOR_LOW:,}/halaman\n"
             f"• Berwarna ≥ 50%: Rp {settings.PRICE_COLOR_HIGH:,}/halaman\n"
             f"• Full Warna: Rp {settings.PRICE_COLOR_FULL:,}/halaman\n\n"
-            "Ada file yang ingin dicetak sekarang? Cukup kirimkan dokumen PDF-nya ke sini ya! 📄"
+            "Ada file yang ingin dicetak sekarang? Cukup kirimkan dokumen PDF atau Word Anda ke sini ya! 📄"
         ),
         reasoning="Rule-based heuristic: General chat."
     )
