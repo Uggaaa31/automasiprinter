@@ -138,9 +138,12 @@ async def parse_fonnte_request(request: Request) -> FonnteWebhookPayload:
     )
 
 
-@app.post("/webhook/fonnte", status_code=status.HTTP_200_OK)
+@app.api_route("/webhook/fonnte", methods=["GET", "POST"], status_code=status.HTTP_200_OK)
 async def fonnte_webhook(request: Request):
     """Primary webhook endpoint invoked by Fonnte on incoming WhatsApp messages or media."""
+    if request.method == "GET":
+        return {"status": "ok", "message": "Fonnte Webhook endpoint is active and listening"}
+
     payload = await parse_fonnte_request(request)
     sender = payload.sender
     customer_name = payload.name or ""
