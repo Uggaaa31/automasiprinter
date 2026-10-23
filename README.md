@@ -296,9 +296,9 @@ File `setup_pc_baru.bat` sudah otomatis mendownload `cloudflared.exe`. Anda cuku
    ```
 
 ### ⚡ Cara Alternatif 1: Bawaan Windows (OpenSSH - Tanpa Install Apapun)
-Jika di PC belum ada aplikasi tunnel, Anda bisa langsung menggunakan SSH bawaan Windows di Command Prompt:
+Cukup jalankan `start_tunnel.bat` atau via CMD:
 ```bash
-ssh -R 80:localhost:8000 a.pinggy.io
+ssh -o StrictHostKeyChecking=no -R 80:127.0.0.1:8000 nokey@localhost.run
 ```
 
 ### ⚡ Cara Alternatif 2: Ngrok

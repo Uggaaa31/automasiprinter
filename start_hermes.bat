@@ -10,7 +10,7 @@ cd /d "%~dp0"
 
 :: 1. Jalankan Tunnel Publik via Windows OpenSSH (Gratis & Tanpa Login/Token)
 echo [INFO] Menjalankan Tunnel Publik di jendela terpisah...
-start "Hermes WhatsApp Tunnel" cmd /k "ssh -o StrictHostKeyChecking=no -R 80:localhost:8000 nokey@localhost.run"
+start "Hermes WhatsApp Tunnel" cmd /k "ssh -o StrictHostKeyChecking=no -R 80:127.0.0.1:8000 nokey@localhost.run"
 
 :: 2. Aktifkan Virtual Environment
 if exist "venv\Scripts\activate.bat" (

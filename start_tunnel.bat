@@ -17,6 +17,6 @@ echo    Contoh: https://xxxx.lhr.life/webhook/fonnte
 echo 3. Tempel (Paste) URL tersebut di kolom 'Webhook ?' di Dashboard Fonnte!
 echo ===============================================================
 echo.
-ssh -o StrictHostKeyChecking=no -R 80:localhost:8000 nokey@localhost.run
+ssh -o StrictHostKeyChecking=no -R 80:127.0.0.1:8000 nokey@localhost.run
 
 pause
